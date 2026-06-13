@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>Orion.Abstractions.Testing</PackageId>
+    <Description>Testing companion for Orion.Abstractions: a frozen / advanceable IOrionClock for deterministic tests of Orion-based background workers, leases, and schedulers.</Description>
+    <PackageTags>orion;abstractions;testing;clock;time;deterministic;dotnet</PackageTags>
+    <PackageReadmeFile>docs/README.md</PackageReadmeFile>
+    <RootNamespace>Moongazing.Orion.Abstractions.Testing</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Moongazing.Orion.Abstractions\Moongazing.Orion.Abstractions.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="docs/README.md" Pack="true" PackagePath="docs/" />
+  </ItemGroup>
+</Project>
