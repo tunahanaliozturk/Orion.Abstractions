@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.png" alt="Orion.Abstractions" width="150" />
+</p>
+
 # Orion.Abstractions
 
 [![CI/CD](https://github.com/tunahanaliozturk/Orion.Abstractions/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/tunahanaliozturk/Orion.Abstractions/actions/workflows/ci-cd.yml)
