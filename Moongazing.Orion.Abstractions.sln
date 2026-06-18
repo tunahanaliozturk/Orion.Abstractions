@@ -17,6 +17,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "benchmarks", "benchmarks", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Moongazing.Orion.Abstractions.Benchmarks", "benchmarks\Moongazing.Orion.Abstractions.Benchmarks\Moongazing.Orion.Abstractions.Benchmarks.csproj", "{A5AD9700-574B-4D47-AAFB-A88486B2F8DE}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "demo", "demo", "{A39C23D2-F2C0-258D-165A-CF1E7FEE6E7B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Moongazing.Orion.Abstractions.Demo", "demo\Moongazing.Orion.Abstractions.Demo\Moongazing.Orion.Abstractions.Demo.csproj", "{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -75,6 +79,18 @@ Global
 		{A5AD9700-574B-4D47-AAFB-A88486B2F8DE}.Release|x64.Build.0 = Release|Any CPU
 		{A5AD9700-574B-4D47-AAFB-A88486B2F8DE}.Release|x86.ActiveCfg = Release|Any CPU
 		{A5AD9700-574B-4D47-AAFB-A88486B2F8DE}.Release|x86.Build.0 = Release|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Debug|x64.Build.0 = Debug|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Debug|x86.Build.0 = Debug|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Release|x64.ActiveCfg = Release|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Release|x64.Build.0 = Release|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Release|x86.ActiveCfg = Release|Any CPU
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -84,5 +100,6 @@ Global
 		{C2E602EB-DB0F-4784-9F9A-01600F1F7D97} = {827E0CD3-B72D-47B6-A68D-7590B98EB39B}
 		{361E725E-42D0-44F9-82CC-B9CAA6953967} = {0AB3BF05-4346-4AA6-1389-037BE0695223}
 		{A5AD9700-574B-4D47-AAFB-A88486B2F8DE} = {66320409-64EC-F7C5-3DEF-65E7510DAAD1}
+		{26C1FE7A-65EB-4FCF-8404-D036E58A9BFA} = {A39C23D2-F2C0-258D-165A-CF1E7FEE6E7B}
 	EndGlobalSection
 EndGlobal
