@@ -180,8 +180,123 @@ public sealed class OrionInstrumentationTests
         sut.Dispose();
     }
 
+    [Fact]
+    public void Unscoped_instance_has_no_instance_scope_id()
+    {
+        using var sut = new TestInstrumentation();
+        Assert.Null(sut.InstanceScopeId);
+    }
+
+    [Fact]
+    public void Unscoped_instance_meter_has_no_scope_or_tags()
+    {
+        using var sut = new TestInstrumentation();
+        Assert.Null(sut.Meter.Scope);
+        // The plain name/version Meter leaves Tags unset (null), exactly as a 0.1.0 consumer saw.
+        Assert.True(sut.Meter.Tags is null || !sut.Meter.Tags.Any());
+    }
+
+    [Fact]
+    public void Scoped_instance_publishes_the_instance_tag_and_scope_id()
+    {
+        using var sut = new ScopedInstrumentation("Moongazing.OrionTest", "9.9.9", "inst-1");
+
+        Assert.Equal("inst-1", sut.InstanceScopeId);
+        Assert.NotNull(sut.Meter.Tags);
+        Assert.Contains(
+            sut.Meter.Tags,
+            t => t.Key == OrionInstrumentation.InstanceTagKey && (string?)t.Value == "inst-1");
+    }
+
+    [Fact]
+    public void Scoped_instance_synthesizes_a_scope_when_none_is_supplied()
+    {
+        using var sut = new ScopedInstrumentation("Moongazing.OrionTest", "9.9.9", "inst-1");
+        // A scoped instance always exposes a non-null Meter.Scope for ReferenceEquals filtering.
+        Assert.NotNull(sut.Meter.Scope);
+    }
+
+    [Fact]
+    public void Scoped_instance_uses_the_supplied_scope_object()
+    {
+        var scope = new object();
+        using var sut = new ScopedInstrumentation("Moongazing.OrionTest", "9.9.9", "inst-1", scope: scope);
+        Assert.Same(scope, sut.Meter.Scope);
+    }
+
+    [Fact]
+    public void Scoped_instance_merges_extra_instance_tags()
+    {
+        using var sut = new ScopedInstrumentation(
+            "Moongazing.OrionTest",
+            "9.9.9",
+            "inst-1",
+            new Dictionary<string, string> { ["region"] = "eu" });
+
+        Assert.NotNull(sut.Meter.Tags);
+        Assert.Contains(
+            sut.Meter.Tags,
+            t => t.Key == OrionInstrumentation.InstanceTagKey && (string?)t.Value == "inst-1");
+        Assert.Contains(sut.Meter.Tags, t => t.Key == "region" && (string?)t.Value == "eu");
+    }
+
+    [Fact]
+    public void Scoped_constructor_with_all_null_arguments_stays_unscoped()
+    {
+        // The opt-in overload with no scope id, no tags, and no scope must behave exactly
+        // like the plain name/version constructor (non-breaking default).
+        using var sut = new ScopedInstrumentation("Moongazing.OrionTest", "9.9.9", instanceScopeId: null);
+
+        Assert.Null(sut.InstanceScopeId);
+        Assert.Null(sut.Meter.Scope);
+        Assert.True(sut.Meter.Tags is null || !sut.Meter.Tags.Any());
+    }
+
+    [Fact]
+    public void ListensTo_matches_an_instrument_from_the_same_instance()
+    {
+        using var sut = new ScopedInstrumentation("Moongazing.OrionTest", "9.9.9", "inst-1");
+        var counter = sut.Meter.CreateCounter<long>("widgets");
+
+        Assert.True(OrionInstrumentation.ListensTo(counter, sut));
+    }
+
+    [Fact]
+    public void ListensTo_rejects_an_instrument_from_a_different_instance()
+    {
+        using var a = new ScopedInstrumentation("Moongazing.OrionTest", "9.9.9", "inst-1");
+        using var b = new ScopedInstrumentation("Moongazing.OrionTest", "9.9.9", "inst-2");
+        var counterB = b.Meter.CreateCounter<long>("widgets");
+
+        // Same Meter name, different instance: reference identity keeps them apart.
+        Assert.False(OrionInstrumentation.ListensTo(counterB, a));
+    }
+
+    [Fact]
+    public void ListensTo_rejects_null_arguments()
+    {
+        using var sut = new ScopedInstrumentation("Moongazing.OrionTest", "9.9.9", "inst-1");
+        var counter = sut.Meter.CreateCounter<long>("widgets");
+
+        Assert.Throws<ArgumentNullException>(() => OrionInstrumentation.ListensTo(null!, sut));
+        Assert.Throws<ArgumentNullException>(() => OrionInstrumentation.ListensTo(counter, null!));
+    }
+
     private sealed class ConfigurableInstrumentation : OrionInstrumentation
     {
         public ConfigurableInstrumentation(string name, string version) : base(name, version) { }
+    }
+
+    private sealed class ScopedInstrumentation : OrionInstrumentation
+    {
+        public ScopedInstrumentation(
+            string name,
+            string version,
+            string? instanceScopeId,
+            IReadOnlyDictionary<string, string>? instanceTags = null,
+            object? scope = null)
+            : base(name, version, instanceScopeId, instanceTags, scope)
+        {
+        }
     }
 }
