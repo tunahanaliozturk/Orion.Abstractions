@@ -241,6 +241,20 @@ public sealed class OrionInstrumentationTests
     }
 
     [Fact]
+    public void Scoped_instance_rejects_the_reserved_instance_tag_key()
+    {
+        // 'orion.instance' is owned by the instance scope id; allowing a caller to also supply it
+        // would emit two conflicting values for the same dimension, so the constructor rejects it.
+        var reserved = new Dictionary<string, string>
+        {
+            [OrionInstrumentation.InstanceTagKey] = "collision",
+        };
+
+        Assert.Throws<ArgumentException>(() =>
+            new ScopedInstrumentation("Moongazing.OrionTest", "9.9.9", "inst-1", reserved));
+    }
+
+    [Fact]
     public void Scoped_constructor_with_all_null_arguments_stays_unscoped()
     {
         // The opt-in overload with no scope id, no tags, and no scope must behave exactly

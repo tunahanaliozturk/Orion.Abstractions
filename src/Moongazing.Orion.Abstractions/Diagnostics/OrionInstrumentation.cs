@@ -221,6 +221,13 @@ public abstract class OrionInstrumentation : IDisposable
         string? instanceScopeId,
         IReadOnlyDictionary<string, string>? instanceTags)
     {
+        if (instanceTags is not null && instanceTags.ContainsKey(InstanceTagKey))
+        {
+            throw new ArgumentException(
+                $"'{InstanceTagKey}' is reserved for the instance scope id and cannot be supplied in instanceTags.",
+                nameof(instanceTags));
+        }
+
         var extra = instanceTags?.Count ?? 0;
         var hasInstanceTag = instanceScopeId is not null;
         var tags = new KeyValuePair<string, object?>[(hasInstanceTag ? 1 : 0) + extra];
