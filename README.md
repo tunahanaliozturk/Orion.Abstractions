@@ -13,6 +13,7 @@ Shared foundation primitives for the **Orion** family of .NET libraries. Three p
 
 - **Fault-safe observer invocation** (`SafeObserverInvoker`) - a null observer is a no-op, observer faults are swallowed so an observability outage cannot break the load-bearing path, and `OperationCanceledException` always propagates on cancellation. Includes a resolve-inside-the-guard variant so a throwing observer constructor cannot abort the host path at resolution time.
 - **OpenTelemetry conventions** (`OrionInstrumentation`) - a base class that pairs a consistently named `ActivitySource` and `Meter`, plus a static-tag stamping pattern for multi-tenant / multi-region dashboard splitting without a second `Meter`.
+- **Instance-scoped instrumentation** (`OrionInstrumentation`) - an instance can opt into a per-instance scope id and extra Meter-level tags, so its `Meter` carries an `orion.instance` tag (plus any custom tags) for per-instance metric partitioning. `OrionInstrumentation.ListensTo` then filters a `MeterListener` to exactly one instance's instruments, even when several live instances share the same Meter name.
 - **Testable clock** (`IOrionClock` / `SystemOrionClock`) - a thin seam over `TimeProvider` so every Orion background worker, lease, and scheduler shares one clock contract and one DI registration.
 - **Deterministic test clock** (`FrozenOrionClock`, in `Orion.Abstractions.Testing`) - a frozen, advanceable clock for testing lease expiry, grace periods, and scheduled work without real delays.
 - **One-line DI registration** (`AddOrionAbstractions`) - registers the production clock via `TryAdd`, so it is safe to call from multiple Orion packages and a consumer override always wins.
@@ -100,6 +101,47 @@ diag.Things.Add(1, diag.Tag(new("outcome", "ok")));
 ```
 
 When no static tags are configured, `Tag(...)` short-circuits to a single-element array, so the common single-tenant path stays allocation-light.
+
+### Instance-scoped instrumentation
+
+When a single process holds several instances that share one Meter name (or tests run them in parallel), a name-filtered `MeterListener` cannot tell them apart and double-counts. Pass an `instanceScopeId` (and optionally extra `instanceTags`) to the scoped base constructor: the `Meter` is then created with the `orion.instance` tag (`OrionInstrumentation.InstanceTagKey`) and a non-null `Meter.Scope`, so a collector can split metrics per instance. The default name/version constructor leaves the Meter unscoped, matching prior behavior.
+
+```csharp
+using System.Diagnostics.Metrics;
+using Moongazing.Orion.Abstractions.Diagnostics;
+
+public sealed class WorkerDiagnostics : OrionInstrumentation
+{
+    public WorkerDiagnostics(string instanceScopeId)
+        : base("Moongazing.MyPackage", "1.0.0", instanceScopeId)
+    {
+        JobsProcessed = Meter.CreateCounter<long>("jobs.processed");
+    }
+
+    public Counter<long> JobsProcessed { get; }
+}
+
+using var first = new WorkerDiagnostics("worker-1");
+using var second = new WorkerDiagnostics("worker-2");
+
+// first.InstanceScopeId == "worker-1"; the Meter carries orion.instance=worker-1.
+```
+
+`ListensTo` filters a `MeterListener` to exactly one instance's instruments by Meter reference identity, so it is robust even if two instances are configured with the same `instanceScopeId`:
+
+```csharp
+using var listener = new MeterListener();
+listener.InstrumentPublished = (instrument, l) =>
+{
+    if (OrionInstrumentation.ListensTo(instrument, first))
+    {
+        l.EnableMeasurementEvents(instrument); // only first's instruments are enabled
+    }
+};
+listener.Start();
+```
+
+The reserved `orion.instance` key cannot be supplied in `instanceTags`; doing so throws `ArgumentException`. Custom `instanceTags` are merged alongside it and stamp the Meter itself, independent of the per-measurement `StaticTags`.
 
 ### Testable clock
 
