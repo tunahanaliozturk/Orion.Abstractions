@@ -6,6 +6,37 @@ All notable changes to Orion.Abstractions are documented in this file. The forma
 on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-06-22
+
+### Added
+
+A normative observer contract and a recording observer test double. These pair together: the
+contract states what an Orion observer may and may not do, and the test double lets a consumer
+assert their observers honor it. No production API changed; both additions are documentation
+and a testing helper.
+
+- `docs/observer-contract.md`: the normative contract for any consumer hook invoked through
+  `SafeObserverInvoker` (dead-letter sinks, lock-event observers, encryption-audit observers,
+  and so on). It states the host-protecting guarantees the invoker already makes (null observer
+  is a no-op, observer faults are swallowed, resolution faults are swallowed, cancellation
+  propagates only on a cancelled token, a null `action` still throws) and the rules an observer
+  author owns (an `onFault` must not throw, an observer must not block the host, an async
+  observer must honor the cancellation token). Linked from the README, FEATURES, and the
+  `Orion.Abstractions.Testing` package readme.
+- `RecordingObserver<TObserver>` in `Orion.Abstractions.Testing`: a recording double for
+  `SafeObserverInvoker` call sites. `Track` / `TrackAsync` wrap the action so completed
+  invocations are recorded; `OnFault` records swallowed faults; assertion surface includes
+  `Invocations`, `InvocationCount`, `WasInvoked`, `Faults`, `FaultCount`, `Faulted`,
+  `SingleFault()`, and `Reset()`. A propagated cancellation is not recorded as a fault, so the
+  double can assert cooperative shutdown is not downgraded. All members are thread-safe.
+
+### Tests
+
+Added `RecordingObserverTests` covering the double against all three `SafeObserverInvoker`
+entry points (`Invoke`, `InvokeAsync`, `Resolve`): completed invocations, swallowed sync and
+async faults, the null-observer no-op, propagated cancellation not recorded as a fault, ordered
+multi-invocation recording, `SingleFault` arity, `Reset`, and snapshot independence.
+
 ## [0.2.0] - 2026-06-19
 
 ### Added
@@ -54,5 +85,6 @@ Initial release. The shared foundation layer for the Orion family.
 
 13 facts across observer invocation, instrumentation, and the frozen clock.
 
+[0.3.0]: https://github.com/tunahanaliozturk/Orion.Abstractions/releases/tag/v0.3.0
 [0.2.0]: https://github.com/tunahanaliozturk/Orion.Abstractions/releases/tag/v0.2.0
 [0.1.0]: https://github.com/tunahanaliozturk/Orion.Abstractions/releases/tag/v0.1.0

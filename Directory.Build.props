@@ -15,7 +15,7 @@
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/tunahanaliozturk/Orion.Abstractions</PackageProjectUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
       <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 </PropertyGroup>

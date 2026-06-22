@@ -1,19 +1,21 @@
 # Roadmap
 
-Current released version: **0.2.0**. It adds instance-scoped instrumentation on top of the 0.1.0 foundation (fault-safe observer invocation, OpenTelemetry instrumentation conventions, and a testable clock).
+Current released version: **0.3.0**. It adds a normative observer contract and a recording observer test double on top of the 0.2.0 release (instance-scoped instrumentation) and the 0.1.0 foundation (fault-safe observer invocation, OpenTelemetry instrumentation conventions, and a testable clock).
 
 This is a list of directions under consideration, not a set of commitments. Items may change, be reordered, or be dropped as the Orion family's needs become clearer. The guiding principle is unchanged: a primitive only earns a place here once it has been re-implemented (and has drifted) across enough family members to justify being shared. Version milestones below indicate ordering and intent, not promised dates.
 
 ## Released / Recently shipped
 
+- **0.3.0** - A normative observer contract and a recording observer test double. `docs/observer-contract.md` states what an Orion observer invoked through `SafeObserverInvoker` may and may not do (an `onFault` must not throw, an observer must not block the host, an async observer must honor the cancellation token), grounded in the guarantees the invoker already makes. `RecordingObserver<TObserver>` joins `FrozenOrionClock` in `Orion.Abstractions.Testing`: it records observer invocations and swallowed faults at a `SafeObserverInvoker` call site (`Track` / `TrackAsync` as the action, `OnFault` as the fault hook) so consumers can assert their observers honor the contract. No production API changed.
 - **0.2.0** - Instance-scoped instrumentation for `OrionInstrumentation`. An opt-in scoped constructor names the `Meter` via `MeterOptions` carrying a stable `orion.instance` tag (`InstanceTagKey`) plus any custom instance tags and a scope object, so a listener can target exactly one of two live instances that share a Meter name. A name-only `MeterListener` still observes both instances; isolation comes from the new static `ListensTo(Instrument, OrionInstrumentation)` predicate (backed by the `InstanceScopeId` property and the instance tag), which filters a listener to one instance's instruments by Meter reference identity. The parameterless name/version constructor is unchanged and remains the default (no instance tag, no scope).
 - **0.1.0** - Initial release. `SafeObserverInvoker` (fault-safe sync/async/resolve-in-guard observer invocation), `OrionInstrumentation` (consistently named `ActivitySource` + `Meter` with the `SetStaticTags` / `Tag` stamping pattern), `IOrionClock` + `SystemOrionClock` (a thin `TimeProvider` seam), the `AddOrionAbstractions()` DI extension, and the `Orion.Abstractions.Testing` package with `FrozenOrionClock`.
 
-## Next (targeting 0.3.0)
+## Next
 
-- **Family convergence.** Existing Orion packages still carry their own copies of these primitives. Migrating them onto the shared abstractions is the main thing that would validate the contracts here and surface gaps, and it is the highest-signal driver for everything below. No primitive graduates from "under consideration" until convergence shows it is genuinely shared.
-- **A written observer contract.** As more family members adopt `SafeObserverInvoker`, a short, normative contract for what an Orion observer may and may not do (no throwing from `onFault`, no blocking the host, cancellation semantics) would help consumers implement hooks correctly. Documentation first; no API change implied.
-- **More test doubles in `Orion.Abstractions.Testing`.** `FrozenOrionClock` is the first. A recording or asserting observer double for `SafeObserverInvoker` call sites could remove similar boilerplate from family test suites, and would pair naturally with the written observer contract above.
+The 0.3.0 written observer contract and recording observer test double have shipped (see above).
+These remain under consideration, unscheduled:
+
+- **Family convergence.** Existing Orion packages still carry their own copies of these primitives. Migrating them onto the shared abstractions is the main thing that would validate the contracts here and surface gaps, and it is the highest-signal driver for everything below. No primitive graduates from "under consideration" until convergence shows it is genuinely shared. This is a cross-repo effort, not a change to this package.
 - **Static-tag ergonomics, only if usage demands it.** The `SetStaticTags` / `Tag` pattern is deliberately minimal. If convergence shows a recurring need (for example, a builder for the startup tag set, or a typed tag helper), it is worth revisiting carefully without regressing the allocation-light hot path. Held back deliberately until there is evidence, not added speculatively.
 
 ## Later (theme, post-0.3.0)
