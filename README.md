@@ -73,6 +73,8 @@ SafeObserverInvoker.Resolve(
     onFault: ex => logger.LogWarning(ex, "observer resolution faulted"));
 ```
 
+What an observer may and may not do (no throwing from `onFault`, no blocking the host, cancellation semantics) is spelled out in the normative [observer contract](docs/observer-contract.md). The `RecordingObserver` test double below lets you assert your observers honor it.
+
 ### OpenTelemetry instrumentation
 
 Derive a sealed diagnostics class from `OrionInstrumentation`. It exposes one `ActivitySource` and one `Meter` sharing a name and version. Create your instruments on `Meter`, and stamp every measurement through `Tag(...)` so the configured static tags are appended.
@@ -185,15 +187,28 @@ The static-tag pattern lets you split dashboards by tenant, region, or environme
 
 - Reference `Orion.Abstractions.Testing` from test projects and inject `FrozenOrionClock` wherever production injects `IOrionClock`. Advancing the clock makes lease-expiry, grace-period, and scheduler tests deterministic and instant.
 - `SafeObserverInvoker` is static and side-effect-free apart from the callbacks you pass, so it is straightforward to assert the no-op, happy, fault-swallowing, and cancellation-propagating paths directly.
+- `RecordingObserver<TObserver>` (also in `Orion.Abstractions.Testing`) records every observer invocation and every swallowed fault at a `SafeObserverInvoker` call site. Pass its `Track` / `TrackAsync` wrapper as the action and its `OnFault` as the fault hook, then assert your observers behave per the [observer contract](docs/observer-contract.md).
+
+```csharp
+using Moongazing.Orion.Abstractions.Observers;
+using Moongazing.Orion.Abstractions.Testing;
+
+var recorder = new RecordingObserver<IMyObserver>(myObserver);
+
+SafeObserverInvoker.Invoke(recorder.Observer, recorder.Track(o => o.OnSomething(payload)), recorder.OnFault);
+
+Assert.True(recorder.WasInvoked); // the action ran to completion
+Assert.False(recorder.Faulted);   // no fault was swallowed
+```
 
 A micro-benchmark suite (BenchmarkDotNet) covers the allocation- and CPU-bearing surface: tag stamping, observer dispatch, and the clock seam. See [benchmarks.md](benchmarks.md). No measured numbers are committed; run the suite locally to produce them for your hardware.
 
 ## Packages
 
-| Package                      | Purpose                                        |
-| ---------------------------- | ---------------------------------------------- |
-| `Orion.Abstractions`         | The shared primitives above.                   |
-| `Orion.Abstractions.Testing` | `FrozenOrionClock` and future test doubles.    |
+| Package                      | Purpose                                               |
+| ---------------------------- | ----------------------------------------------------- |
+| `Orion.Abstractions`         | The shared primitives above.                          |
+| `Orion.Abstractions.Testing` | `FrozenOrionClock` and `RecordingObserver` test doubles. |
 
 ## Versioning
 
@@ -202,6 +217,7 @@ Follows [Semantic Versioning](https://semver.org/). The library multi-targets `n
 ## Documentation
 
 - [docs/FEATURES.md](docs/FEATURES.md) - a deeper breakdown of each feature and its public types and methods.
+- [docs/observer-contract.md](docs/observer-contract.md) - the normative contract for what an Orion observer may and may not do.
 - [docs/ROADMAP.md](docs/ROADMAP.md) - ideas under consideration.
 - [benchmarks.md](benchmarks.md) - what the benchmark suite measures and how to run it.
 

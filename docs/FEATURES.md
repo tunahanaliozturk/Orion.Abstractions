@@ -23,6 +23,8 @@ Every Orion package exposes consumer observer hooks (dead-letter sinks, lock-eve
 
 `action` and `resolve` are validated with `ArgumentNullException.ThrowIfNull`; passing null for either throws (this is a programming error, not an observer fault). The `onFault` callback is optional and must not throw.
 
+The full set of rules an observer must follow (no throwing from `onFault`, no blocking the host, cancellation semantics) is the [observer contract](observer-contract.md). `RecordingObserver<TObserver>` (in `Orion.Abstractions.Testing`, see below) lets a consumer assert their observers honor it.
+
 ## 2. OpenTelemetry instrumentation conventions
 
 **Namespace:** `Moongazing.Orion.Abstractions.Diagnostics`
@@ -83,6 +85,28 @@ A deterministic clock for tests. The wall clock and the monotonic timestamp are 
 | `Advance` | `void Advance(TimeSpan delta)` | Advances both the wall clock and the monotonic timestamp by `delta`. Negative deltas are rejected with `ArgumentOutOfRangeException`, matching a real monotonic clock. |
 | `SetUtcNow` | `void SetUtcNow(DateTimeOffset value)` | Sets the wall clock to an explicit instant without moving the monotonic timestamp. Rejects a value earlier than the current one. |
 | `UtcNow` / `GetTimestamp` / `GetElapsedTime` | (from `IOrionClock`) | Read the frozen state. `GetElapsedTime` is computed from the monotonic timestamp using `Stopwatch.Frequency`. |
+
+## 4a. Recording observer test double
+
+**Package:** `Orion.Abstractions.Testing`
+**Namespace:** `Moongazing.Orion.Abstractions.Testing`
+**Type:** `sealed class RecordingObserver<TObserver> where TObserver : class`
+
+A recording double for `SafeObserverInvoker` call sites. It captures every observer invocation and every swallowed fault so a test can assert an observer (and the host driving it) behaves per the [observer contract](observer-contract.md). Compose it by passing `Track(...)` / `TrackAsync(...)` as the action and `OnFault` as the fault hook. The double never throws from the action or the fault hook itself, so it cannot perturb the fault-safety it verifies. All members are thread-safe.
+
+| Member | Signature | Behavior |
+| --- | --- | --- |
+| constructors | `RecordingObserver()` / `RecordingObserver(TObserver? observer)` | The parameterless ctor leaves `Observer` null (drives the no-op path). The other supplies the observer the recorded action receives, or null. |
+| `Observer` | `TObserver? Observer { get; }` | The observer instance handed to the recorded action, or null for the no-op (null-observer) path. |
+| `Track` | `Action<TObserver> Track(Action<TObserver>? action = null)` | Wraps a sync action so each *completed* invocation is recorded. A faulting action records a fault (via `OnFault`) but no invocation. A null inner action records the invocation only. |
+| `TrackAsync` | `Func<TObserver, Task> TrackAsync(Func<TObserver, Task>? action = null)` | The async counterpart. Records the invocation only after the returned task completes successfully, so a faulting or cancelled action records no invocation. |
+| `OnFault` | `Action<Exception> OnFault { get; }` | The fault hook to hand to `SafeObserverInvoker` as its `onFault` argument. Records the swallowed exception and never throws. |
+| `Invocations` / `InvocationCount` / `WasInvoked` | snapshots | The observer instances passed to the action in order, the count, and whether at least one ran. |
+| `Faults` / `FaultCount` / `Faulted` | snapshots | The reported faults in order, the count, and whether at least one was reported. |
+| `SingleFault` | `Exception SingleFault()` | The one reported fault, throwing `InvalidOperationException` if zero or more than one were recorded. |
+| `Reset` | `void Reset()` | Clears recorded invocations and faults so the double can be reused across phases of a test. |
+
+A propagated cancellation (the invoker re-throwing `OperationCanceledException` on a cancelled token) is *not* recorded as a fault, so the double can assert that cooperative shutdown is not downgraded.
 
 ## 5. Dependency-injection registration
 
