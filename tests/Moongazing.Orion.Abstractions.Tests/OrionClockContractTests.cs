@@ -12,11 +12,11 @@ using Xunit;
 /// </summary>
 public sealed class OrionClockContractTests
 {
-    public static TheoryData<IOrionClock> Clocks =>
-    [
+    public static TheoryData<IOrionClock> Clocks => new()
+    {
         new SystemOrionClock(),
         new FrozenOrionClock(DateTimeOffset.Parse("2026-07-01T00:00:00Z", CultureInfo.InvariantCulture)),
-    ];
+    };
 
     [Theory]
     [MemberData(nameof(Clocks))]
