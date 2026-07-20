@@ -117,8 +117,99 @@ A propagated cancellation (the invoker re-throwing `OperationCanceledException` 
 | --- | --- | --- |
 | `AddOrionAbstractions` | `IServiceCollection AddOrionAbstractions(this IServiceCollection services)` | Registers `IOrionClock` as a `SystemOrionClock` singleton using `TryAddSingleton`, then returns the collection for chaining. Safe to call from multiple Orion packages' `Add` methods; the first registration (or a consumer override registered earlier) wins. |
 
+## 6. The options and DI convention
+
+**Namespace:** `Moongazing.Orion.Abstractions.Configuration`
+
+One options shape for the whole family, so a package states its invariants once and every misconfiguration is reported the same way. Validation is *collecting*, not fail-fast: an implementation reports every invalid setting, so a misconfigured host fails once with a complete list rather than one round-trip per mistake.
+
+### `abstract class OrionOptions`
+
+| Member | Signature | Behavior |
+| --- | --- | --- |
+| `Validate` | `virtual void Validate(OrionOptionsValidationContext context)` | Reports each invariant violation to the context. The default reports nothing, so an options type with no invariants needs no override. |
+
+`Validate` is **public**, not protected, on purpose: a protected member cannot be overridden as `protected internal` from another assembly (CS0507), which would trap every package author outside this one. Public also lets a test assert an options type's invariants directly, without a service provider.
+
+Options types are mutable classes with parameterless constructors and usable defaults - `Microsoft.Extensions.Options` cannot bind an immutable record from configuration without a matching constructor shape.
+
+### `sealed class OrionOptionsValidationContext`
+
+| Member | Signature | Behavior |
+| --- | --- | --- |
+| `OptionsType` | `Type OptionsType { get; }` | The type being validated. |
+| `OptionsName` | `string? OptionsName { get; }` | The named-options name, or null for the default instance, so a validator can relax an invariant for one named configuration. |
+| `HasFailures` / `Failures` | `bool` / `IReadOnlyList<string>` | Whether anything failed, and the failures in report order. |
+| `AddFailure` | `void AddFailure(string propertyName, string reason)` | Reports a failure against one setting as `{OptionsType}.{propertyName}: {reason}`. |
+| `AddFailure` | `void AddFailure(string reason)` | Reports a cross-property failure with no single owning setting, as `{OptionsType}: {reason}`. |
+| `Require` | `void Require(bool condition, string reason)` | Reports `reason` when the invariant does not hold. |
+| `RequireNotNullOrWhiteSpace` | `void RequireNotNullOrWhiteSpace(string? value, string propertyName)` | Distinguishes unset (`must be set.`) from blank (`must not be empty or whitespace.`). |
+| `RequirePositive` | `void RequirePositive(TimeSpan\|int value, string propertyName)` | Rejects zero and negative. |
+| `RequireNonNegative` | `void RequireNonNegative(TimeSpan\|int value, string propertyName)` | Rejects negative; accepts zero. |
+| `RequireInRange` | `void RequireInRange(TimeSpan\|int value, min, max, string propertyName)` | Bounds are inclusive. |
+
+Numeric values are rendered with the invariant culture, so a failure message reads the same on every host locale.
+
+### `sealed class OrionOptionsValidator<TOptions> : IValidateOptions<TOptions>`
+
+Bridges `OrionOptions.Validate` onto the standard options pipeline. `Options.DefaultName` (the empty string) and null are both treated as the default instance, so an unnamed registration never fails with `named ''`.
+
+### `static class OrionOptionsServiceCollectionExtensions`
+
+| Member | Signature | Behavior |
+| --- | --- | --- |
+| `AddOrionOptions` | `OptionsBuilder<TOptions> AddOrionOptions<TOptions>(this IServiceCollection services, Action<TOptions>? configure = null, string? name = null) where TOptions : OrionOptions` | Configures the options and registers the validator with `TryAddEnumerable`. Calling it repeatedly (as a repeated `AddOrionX()` would) yields one validator while every configuration delegate still applies. Returns the builder for chaining. |
+
+## 7. The telemetry naming surface
+
+**Namespace:** `Moongazing.Orion.Abstractions.Diagnostics`
+**Type:** `static class OrionTelemetry`
+
+Two naming schemes, deliberately: instrumentation *scopes* use the assembly-style `Moongazing.OrionLock` so they match the package names an operator enables in their OTel config, while *metrics* and *tags* use the lowercase dotted form the OpenTelemetry semantic conventions mandate.
+
+| Member | Signature | Behavior |
+| --- | --- | --- |
+| `ScopePrefix` / `MetricPrefix` | `const string` | `Moongazing.` and `orion.`. |
+| `ScopeName` | `string ScopeName(string packageName)` | `ScopeName("OrionLock")` is `Moongazing.OrionLock`. Idempotent for an already-qualified name. |
+| `MetricName` | `string MetricName(string component, string instrument)` | `MetricName("lock", "acquire.duration")` is `orion.lock.acquire.duration`. |
+| `Tags` | `static class` | `orion.instance`, `orion.package`, `orion.tenant`, `orion.region`, `orion.operation`, `orion.outcome`, `orion.error.code`, `orion.attempt`. |
+| `Outcomes` | `static class` | `success`, `failure`, `cancelled`, `timeout`. |
+
+`OrionInstrumentation.InstanceTagKey` is an alias of `OrionTelemetry.Tags.Instance`; a test pins the two together so they cannot drift. The outcome set is bounded on purpose - outcome is a low-cardinality dimension, so failures are distinguished by `orion.error.code` rather than by inventing new outcomes.
+
+## 8. The result and error vocabulary
+
+**Namespace:** `Moongazing.Orion.Abstractions.Results`
+
+Contract only. It gives the family one way to report an expected outcome - a lock already held, an idempotency key replayed, an API key expired - without the cost and control-flow damage of throwing. The ergonomic type with the map/bind/match surface ships in the `OrionResult` package.
+
+### `readonly record struct OrionError`
+
+| Member | Signature | Behavior |
+| --- | --- | --- |
+| `Code` | `string` | The stable machine-readable code consumers branch on. Lowercase `snake_case`, never localised, never reworded - it is an API surface. |
+| `Message` | `string` | The human-readable description. Safe to log; not a UI string. |
+| `Target` | `string?` | What the error is about - a field name, a resource id, a lock key. |
+| `ToString` | `string ToString()` | `code: message`, or `code (target): message` when a target is set. |
+
+The constructor rejects a blank code or message. Value equality, so two errors with the same code, message, and target compare equal.
+
+### `static class OrionErrorCodes`
+
+`invalid_argument`, `not_found`, `conflict`, `failed_precondition`, `unauthenticated`, `permission_denied`, `rate_limited`, `timeout`, `cancelled`, `unavailable`, `internal`. Mirrors the widely-understood canonical codes (gRPC / the Google API design guide) rather than inventing a fourth vocabulary, so the web tier maps an error to a status code without a per-package table. A genuinely package-specific condition prefixes its own code with the component's short name, e.g. `lock_lease_lost`.
+
+### `interface IOrionResult` / `IOrionResult<out TValue>`
+
+| Member | Signature | Behavior |
+| --- | --- | --- |
+| `IsSuccess` | `bool` | True when the operation achieved its intent. |
+| `Error` | `OrionError?` | Non-null exactly when `IsSuccess` is false. |
+| `Value` | `TValue` | Only meaningful on success; an implementation may throw when it is read on a failure. |
+
 ## Design constraints
 
 - Multi-targets `net8.0`, `net9.0`, and `net10.0`.
 - Nullable reference types enabled, `TreatWarningsAsErrors`, latest analyzers, documentation file generated.
-- The only runtime dependency is `Microsoft.Extensions.DependencyInjection.Abstractions`. `Orion.Abstractions.Testing` adds only a project reference to `Orion.Abstractions`.
+- `IsAotCompatible` is set, so trim and AOT analyzers run on every build. A NativeAOT publish smoke test in CI publishes a native binary exercising every public entry point with `-warnaserror` and runs it.
+- The runtime dependencies are `Microsoft.Extensions.DependencyInjection.Abstractions` and `Microsoft.Extensions.Options`. `Orion.Abstractions.Testing` adds only a project reference to `Orion.Abstractions`.
+- No Orion dependencies, ever - that is what lets everything depend on it.

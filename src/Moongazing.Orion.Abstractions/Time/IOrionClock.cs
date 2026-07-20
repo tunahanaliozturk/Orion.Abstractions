@@ -16,6 +16,14 @@ public interface IOrionClock
     DateTimeOffset UtcNow { get; }
 
     /// <summary>
+    /// The current UTC instant, as a method. Identical to <see cref="UtcNow"/>; it exists so
+    /// the contract mirrors <see cref="TimeProvider.GetUtcNow"/> and code can move between the
+    /// two seams without a rename. Do not override - the default forwards to
+    /// <see cref="UtcNow"/>, which keeps a single source of truth per implementation.
+    /// </summary>
+    DateTimeOffset GetUtcNow() => UtcNow;
+
+    /// <summary>
     /// A high-frequency monotonic timestamp for measuring elapsed time, in the same units as
     /// <see cref="System.Diagnostics.Stopwatch.GetTimestamp"/>. Use with
     /// <see cref="GetElapsedTime(long)"/> rather than subtracting <see cref="UtcNow"/> values
