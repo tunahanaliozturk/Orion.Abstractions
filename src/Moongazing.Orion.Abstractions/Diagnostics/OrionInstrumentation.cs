@@ -31,8 +31,9 @@ public abstract class OrionInstrumentation : IDisposable
     /// <summary>
     /// The tag key carrying the per-instance scope id on a scoped <see cref="Meter"/>.
     /// Stable across the Orion family so dashboards can split on a single well-known key.
+    /// An alias of <see cref="OrionTelemetry.Tags.Instance"/>, the frozen naming surface.
     /// </summary>
-    public const string InstanceTagKey = "orion.instance";
+    public const string InstanceTagKey = OrionTelemetry.Tags.Instance;
 
     private volatile KeyValuePair<string, object?>[] staticTags = Array.Empty<KeyValuePair<string, object?>>();
 

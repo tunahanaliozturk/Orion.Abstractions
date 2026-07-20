@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <!--
+      The NativeAOT publish smoke test. `dotnet publish` on this project must succeed with zero
+      trim/AOT warnings, which is the exit criterion for the spine being AOT-clean: it exercises
+      every public entry point that could plausibly need reflection (options binding, DI
+      registration, instrumentation, the clock seam) in a rooted, trimmed, fully-native binary.
+      Single-target: AOT publish needs one RID-specific TFM, and .NET 10 is the family's target.
+    -->
+    <TargetFramework>net10.0</TargetFramework>
+    <TargetFrameworks />
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <PublishAot>true</PublishAot>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Moongazing.Orion.Abstractions\Moongazing.Orion.Abstractions.csproj" />
+  </ItemGroup>
+</Project>
