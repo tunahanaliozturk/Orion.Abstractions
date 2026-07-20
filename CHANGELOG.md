@@ -24,7 +24,10 @@ Wave 1 release binds to this version.
     options type's invariants directly without a service provider.
   - `OrionOptionsValidationContext`: the collector an implementation reports violations to, with
     `AddFailure`, `Require`, `RequireNotNullOrWhiteSpace`, `RequirePositive`,
-    `RequireNonNegative`, and `RequireInRange` for durations and counts. Validation *collects*
+    `RequireNonNegative`, and `RequireInRange` for durations and counts. The constructor and the
+    `For<TOptions>()` factory are public, and `BuildFailureMessage()` returns the exact
+    operator-facing text - so a package can unit-test its own `Validate` override directly
+    rather than through a service provider. Validation *collects*
     rather than fail-fast, so a misconfigured host learns every mistake in one startup instead
     of one per restart, and it owns the failure-message format so all sixteen packages reject
     configuration identically.

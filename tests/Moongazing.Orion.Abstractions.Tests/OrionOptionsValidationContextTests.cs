@@ -168,6 +168,55 @@ public sealed class OrionOptionsValidationContextTests
     }
 
     [Fact]
+    public void For_builds_a_context_a_consumer_can_validate_against_directly()
+    {
+        // The point of the public constructor and factory: a sibling package can unit-test its
+        // own Validate override without standing up a service provider.
+        var context = OrionOptionsValidationContext.For<LeaseOptions>();
+
+        new LeaseOptions { LeaseDuration = TimeSpan.Zero }.Validate(context);
+
+        Assert.True(context.HasFailures);
+        Assert.Equal(typeof(LeaseOptions), context.OptionsType);
+        Assert.Equal(
+            "LeaseOptions is invalid. LeaseOptions.LeaseDuration: must be greater than zero (was 00:00:00).",
+            context.BuildFailureMessage());
+    }
+
+    [Fact]
+    public void For_carries_the_named_options_name()
+    {
+        Assert.Equal("primary", OrionOptionsValidationContext.For<LeaseOptions>("primary").OptionsName);
+        Assert.Null(OrionOptionsValidationContext.For<LeaseOptions>().OptionsName);
+    }
+
+    [Fact]
+    public void BuildFailureMessage_is_null_when_nothing_failed()
+    {
+        Assert.Null(Context().BuildFailureMessage());
+    }
+
+    [Fact]
+    public void BuildFailureMessage_lists_every_failure_when_several_were_reported()
+    {
+        var context = Context();
+
+        context.AddFailure("A", "first.");
+        context.AddFailure("B", "second.");
+
+        var message = context.BuildFailureMessage();
+        Assert.StartsWith("SampleOptions is invalid:", message, StringComparison.Ordinal);
+        Assert.Contains("- SampleOptions.A: first.", message, StringComparison.Ordinal);
+        Assert.Contains("- SampleOptions.B: second.", message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void The_constructor_rejects_a_null_options_type()
+    {
+        Assert.Throws<ArgumentNullException>(() => new OrionOptionsValidationContext(null!));
+    }
+
+    [Fact]
     public void AddFailure_rejects_a_blank_property_or_reason()
     {
         var context = Context();
@@ -178,4 +227,15 @@ public sealed class OrionOptionsValidationContextTests
     }
 
     private sealed class SampleOptions : OrionOptions;
+
+    private sealed class LeaseOptions : OrionOptions
+    {
+        public TimeSpan LeaseDuration { get; set; }
+
+        public override void Validate(OrionOptionsValidationContext context)
+        {
+            base.Validate(context);
+            context.RequirePositive(LeaseDuration, nameof(LeaseDuration));
+        }
+    }
 }

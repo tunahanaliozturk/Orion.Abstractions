@@ -28,7 +28,7 @@ public sealed class OrionOptionsValidator<TOptions> : IValidateOptions<TOptions>
 
         options.Validate(context);
 
-        var message = context.BuildMessage();
+        var message = context.BuildFailureMessage();
         return message is null
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(message);

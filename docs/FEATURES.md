@@ -137,6 +137,9 @@ Options types are mutable classes with parameterless constructors and usable def
 
 | Member | Signature | Behavior |
 | --- | --- | --- |
+| ctor | `OrionOptionsValidationContext(Type optionsType, string? optionsName = null)` | Public, so a package can unit-test its own `Validate` override without a service provider. |
+| `For` | `static OrionOptionsValidationContext For<TOptions>(string? optionsName = null) where TOptions : OrionOptions` | The type-safe way to build one for a test. |
+| `BuildFailureMessage` | `string? BuildFailureMessage()` | The exact operator-facing text a rejected configuration surfaces, or null when nothing failed. |
 | `OptionsType` | `Type OptionsType { get; }` | The type being validated. |
 | `OptionsName` | `string? OptionsName { get; }` | The named-options name, or null for the default instance, so a validator can relax an invariant for one named configuration. |
 | `HasFailures` / `Failures` | `bool` / `IReadOnlyList<string>` | Whether anything failed, and the failures in report order. |

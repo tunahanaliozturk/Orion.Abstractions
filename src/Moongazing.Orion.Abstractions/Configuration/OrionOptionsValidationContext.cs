@@ -16,12 +16,39 @@ public sealed class OrionOptionsValidationContext
 {
     private readonly List<string> failures = [];
 
-    internal OrionOptionsValidationContext(Type optionsType, string? optionsName)
+    /// <summary>
+    /// Create a context for validating <paramref name="optionsType"/>. The validation wiring
+    /// does this for you; construct one directly to unit-test an
+    /// <see cref="OrionOptions.Validate(OrionOptionsValidationContext)"/> override without
+    /// going through a service provider. Prefer <see cref="For{TOptions}(string?)"/>.
+    /// </summary>
+    /// <param name="optionsType">The options type being validated.</param>
+    /// <param name="optionsName">
+    /// The named-options name, or <see langword="null"/> for the default instance.
+    /// </param>
+    public OrionOptionsValidationContext(Type optionsType, string? optionsName = null)
     {
         ArgumentNullException.ThrowIfNull(optionsType);
         OptionsType = optionsType;
         OptionsName = optionsName;
     }
+
+    /// <summary>
+    /// Create a context for validating <typeparamref name="TOptions"/> - the type-safe way to
+    /// unit-test an options type's invariants directly:
+    /// <code>
+    /// var context = OrionOptionsValidationContext.For&lt;OrionLockOptions&gt;();
+    /// new OrionLockOptions { LeaseDuration = TimeSpan.Zero }.Validate(context);
+    /// Assert.True(context.HasFailures);
+    /// </code>
+    /// </summary>
+    /// <typeparam name="TOptions">The options type being validated.</typeparam>
+    /// <param name="optionsName">
+    /// The named-options name, or <see langword="null"/> for the default instance.
+    /// </param>
+    public static OrionOptionsValidationContext For<TOptions>(string? optionsName = null)
+        where TOptions : OrionOptions =>
+        new(typeof(TOptions), optionsName);
 
     /// <summary>The options type being validated.</summary>
     public Type OptionsType { get; }
@@ -161,9 +188,10 @@ public sealed class OrionOptionsValidationContext
 
     /// <summary>
     /// The reported failures rendered as one operator-facing message, or
-    /// <see langword="null"/> when nothing failed.
+    /// <see langword="null"/> when nothing failed. This is the exact text a rejected
+    /// configuration surfaces, so a test can assert it verbatim.
     /// </summary>
-    internal string? BuildMessage()
+    public string? BuildFailureMessage()
     {
         if (failures.Count == 0)
         {

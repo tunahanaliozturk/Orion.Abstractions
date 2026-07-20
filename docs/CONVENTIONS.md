@@ -80,10 +80,21 @@ Rules:
   genuinely needs a secret or connection string.
 - **SHOULD** use `TimeSpan` for durations, never `int` milliseconds.
 
+Test the invariants directly — no service provider needed, which is why `Validate` is public
+and the context is constructible:
+
+```csharp
+var context = OrionOptionsValidationContext.For<OrionLockOptions>();
+new OrionLockOptions { LeaseDuration = TimeSpan.Zero }.Validate(context);
+
+Assert.True(context.HasFailures);
+Assert.Contains("LeaseDuration", context.BuildFailureMessage());
+```
+
 Failure messages come out in one frozen format, so an operator sees the same thing whichever
 package rejected their config:
 
-```
+```text
 OrionLockOptions is invalid:
   - OrionLockOptions.LeaseDuration: must be greater than zero (was 00:00:00).
   - OrionLockOptions: RenewalInterval must be shorter than LeaseDuration, or a lease expires before it renews.

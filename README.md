@@ -195,7 +195,7 @@ services.AddOrionOptions<OrionLockOptions>(configure);
 
 A rejected configuration fails resolution with one operator-facing message, in the same format for every package in the family:
 
-```
+```text
 OrionLockOptions is invalid:
   - OrionLockOptions.LeaseDuration: must be greater than zero (was 00:00:00).
   - OrionLockOptions: RenewalInterval must be shorter than LeaseDuration, or a lease expires before it renews.
