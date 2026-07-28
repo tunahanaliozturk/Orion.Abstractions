@@ -309,7 +309,7 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [CODE_
 
 ## More from the Orion family
 
-Focused, standalone .NET libraries that share a quality bar, not a dependency graph — pick only what you need:
+Focused .NET libraries built to one quality bar. Each is usable on its own; several share the small [`Orion.Abstractions`](https://github.com/tunahanaliozturk/Orion.Abstractions) contracts spine, but there is no deep dependency web — pick only what you need:
 
 - [OrionGuard](https://github.com/tunahanaliozturk/OrionGuard) — validation, guard clauses, DDD primitives, domain events
 - [OrionAudit](https://github.com/tunahanaliozturk/OrionAudit) — automatic EF Core change-audit trail
