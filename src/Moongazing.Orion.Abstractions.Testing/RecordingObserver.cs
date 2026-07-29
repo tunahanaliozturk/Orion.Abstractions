@@ -23,6 +23,27 @@ public sealed class RecordingObserver<TObserver>
     private readonly object gate = new();
     private readonly List<TObserver> invocations = new();
     private readonly List<Exception> faults = new();
+    private readonly List<RecordedEvent> events = new();
+
+    /// <summary>Whether a <see cref="RecordedEvent"/> is a completed invocation or a swallowed fault.</summary>
+    public enum RecordedEventKind
+    {
+        /// <summary>The recorded action ran to completion.</summary>
+        Invocation,
+
+        /// <summary>A fault was reported through <see cref="OnFault"/> and swallowed.</summary>
+        Fault,
+    }
+
+    /// <summary>
+    /// One entry in the interleaved timeline of invocations and faults, in the exact order they
+    /// occurred. Lets a test assert ordering the separate <see cref="Invocations"/> / <see cref="Faults"/>
+    /// lists cannot express — e.g. that a fault happened <em>between</em> two successful invocations.
+    /// </summary>
+    /// <param name="Kind">Whether this entry is an invocation or a fault.</param>
+    /// <param name="Observer">The observer passed to the action for an <see cref="RecordedEventKind.Invocation"/>; otherwise null.</param>
+    /// <param name="Fault">The swallowed exception for a <see cref="RecordedEventKind.Fault"/>; otherwise null.</param>
+    public readonly record struct RecordedEvent(RecordedEventKind Kind, TObserver? Observer, Exception? Fault);
 
     /// <summary>
     /// The observer instance handed to the recorded action, or <see langword="null"/> to drive
@@ -63,6 +84,22 @@ public sealed class RecordingObserver<TObserver>
             lock (gate)
             {
                 return faults.ToArray();
+            }
+        }
+    }
+
+    /// <summary>
+    /// The interleaved timeline of invocations and faults, in the exact order they occurred. Use this
+    /// to assert ordering between the two (which the separate <see cref="Invocations"/> and
+    /// <see cref="Faults"/> lists cannot express).
+    /// </summary>
+    public IReadOnlyList<RecordedEvent> Events
+    {
+        get
+        {
+            lock (gate)
+            {
+                return events.ToArray();
             }
         }
     }
@@ -168,6 +205,7 @@ public sealed class RecordingObserver<TObserver>
         {
             invocations.Clear();
             faults.Clear();
+            events.Clear();
         }
     }
 
@@ -176,6 +214,7 @@ public sealed class RecordingObserver<TObserver>
         lock (gate)
         {
             invocations.Add(observer);
+            events.Add(new RecordedEvent(RecordedEventKind.Invocation, observer, null));
         }
     }
 
@@ -185,6 +224,7 @@ public sealed class RecordingObserver<TObserver>
         lock (gate)
         {
             faults.Add(fault);
+            events.Add(new RecordedEvent(RecordedEventKind.Fault, null, fault));
         }
     }
 }
