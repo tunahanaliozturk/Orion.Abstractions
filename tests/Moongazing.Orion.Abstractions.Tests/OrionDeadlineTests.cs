@@ -22,8 +22,8 @@ public sealed class OrionDeadlineTests
         var deadline = OrionDeadline.After(clock, TimeSpan.FromSeconds(30));
 
         Assert.True(deadline.HasBudget);
-        Assert.False(deadline.IsExpired(clock));
-        Assert.Equal(TimeSpan.FromSeconds(30), deadline.Remaining(clock));
+        Assert.False(deadline.IsExpired);
+        Assert.Equal(TimeSpan.FromSeconds(30), deadline.Remaining);
     }
 
     [Fact]
@@ -33,12 +33,12 @@ public sealed class OrionDeadlineTests
         var deadline = OrionDeadline.After(clock, TimeSpan.FromSeconds(30));
 
         clock.Advance(TimeSpan.FromSeconds(10));
-        Assert.False(deadline.IsExpired(clock));
-        Assert.Equal(TimeSpan.FromSeconds(20), deadline.Remaining(clock));
+        Assert.False(deadline.IsExpired);
+        Assert.Equal(TimeSpan.FromSeconds(20), deadline.Remaining);
 
         clock.Advance(TimeSpan.FromSeconds(20)); // now at the budget
-        Assert.True(deadline.IsExpired(clock));
-        Assert.Equal(TimeSpan.Zero, deadline.Remaining(clock));
+        Assert.True(deadline.IsExpired);
+        Assert.Equal(TimeSpan.Zero, deadline.Remaining);
     }
 
     [Fact]
@@ -49,8 +49,8 @@ public sealed class OrionDeadlineTests
 
         clock.Advance(TimeSpan.FromSeconds(60));
 
-        Assert.True(deadline.IsExpired(clock));
-        Assert.Equal(TimeSpan.Zero, deadline.Remaining(clock));
+        Assert.True(deadline.IsExpired);
+        Assert.Equal(TimeSpan.Zero, deadline.Remaining);
     }
 
     [Fact]
@@ -58,8 +58,8 @@ public sealed class OrionDeadlineTests
     {
         var clock = new FrozenOrionClock();
 
-        Assert.True(OrionDeadline.After(clock, TimeSpan.Zero).IsExpired(clock));
-        Assert.True(OrionDeadline.After(clock, TimeSpan.FromSeconds(-1)).IsExpired(clock));
+        Assert.True(OrionDeadline.After(clock, TimeSpan.Zero).IsExpired);
+        Assert.True(OrionDeadline.After(clock, TimeSpan.FromSeconds(-1)).IsExpired);
     }
 
     [Fact]
@@ -71,8 +71,8 @@ public sealed class OrionDeadlineTests
         clock.Advance(TimeSpan.FromDays(3650));
 
         Assert.False(never.HasBudget);
-        Assert.False(never.IsExpired(clock));
-        Assert.Equal(Timeout.InfiniteTimeSpan, never.Remaining(clock));
+        Assert.False(never.IsExpired);
+        Assert.Equal(Timeout.InfiniteTimeSpan, never.Remaining);
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public sealed class OrionDeadlineTests
         var deadline = OrionDeadline.After(clock, Timeout.InfiniteTimeSpan);
 
         Assert.Equal(OrionDeadline.Never, deadline);
-        Assert.False(deadline.IsExpired(clock));
+        Assert.False(deadline.IsExpired);
     }
 
     [Fact]
@@ -93,7 +93,7 @@ public sealed class OrionDeadlineTests
 
         Assert.Equal(OrionDeadline.Never, defaulted);
         Assert.False(defaulted.HasBudget);
-        Assert.False(defaulted.IsExpired(clock));
+        Assert.False(defaulted.IsExpired);
     }
 
     [Fact]
@@ -101,13 +101,13 @@ public sealed class OrionDeadlineTests
         => Assert.Throws<ArgumentNullException>(() => OrionDeadline.After(null!, TimeSpan.FromSeconds(1)));
 
     [Fact]
-    public void IsExpired_and_Remaining_reject_a_null_clock()
+    public void Deadlines_from_different_clocks_are_never_equal()
     {
-        var clock = new FrozenOrionClock();
-        var deadline = OrionDeadline.After(clock, TimeSpan.FromSeconds(1));
+        var clockA = new FrozenOrionClock();
+        var clockB = new FrozenOrionClock();
 
-        Assert.Throws<ArgumentNullException>(() => deadline.IsExpired(null!));
-        Assert.Throws<ArgumentNullException>(() => deadline.Remaining(null!));
+        // Same captured timestamp (both frozen at 0) and budget, but distinct originating clocks.
+        Assert.NotEqual(OrionDeadline.After(clockA, TimeSpan.FromSeconds(30)), OrionDeadline.After(clockB, TimeSpan.FromSeconds(30)));
     }
 
     [Fact]
