@@ -58,6 +58,12 @@ public sealed class DeterministicFaultInjectorTests
         Assert.Equal(5, injector.Attempts);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    public void FailOnAttempts_rejects_non_positive_attempt_numbers(int bad)
+        => Assert.Throws<ArgumentOutOfRangeException>(() => DeterministicFaultInjector.FailOnAttempts(1, bad));
+
     [Fact]
     public void AlwaysFail_fails_every_attempt()
     {

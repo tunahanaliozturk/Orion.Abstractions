@@ -61,6 +61,16 @@ public sealed class DeterministicFaultInjector
     public static DeterministicFaultInjector FailOnAttempts(int[] attempts, Func<Exception>? fault)
     {
         ArgumentNullException.ThrowIfNull(attempts);
+        foreach (var attempt in attempts)
+        {
+            if (attempt < 1)
+            {
+                // Attempts are 1-based (Next() yields 1, 2, ...), so a 0 or negative number could
+                // never match. Reject it rather than silently producing an injector that never
+                // faults - which would turn a typo into a passing reliability test.
+                throw new ArgumentOutOfRangeException(nameof(attempts), attempt, "Attempt numbers are 1-based; each must be >= 1.");
+            }
+        }
         var set = new HashSet<int>(attempts);
         return new DeterministicFaultInjector(set.Contains, fault);
     }
