@@ -18,6 +18,8 @@ The frozen spine of the **Orion** family of .NET libraries. Five things kept bei
 - **Instance-scoped instrumentation** (`OrionInstrumentation`) - an instance can opt into a per-instance scope id and extra Meter-level tags, so its `Meter` carries an `orion.instance` tag (plus any custom tags) for per-instance metric partitioning. `OrionInstrumentation.ListensTo` then filters a `MeterListener` to exactly one instance's instruments, even when several live instances share the same Meter name.
 - **Testable clock** (`IOrionClock` / `SystemOrionClock`) - a thin seam over `TimeProvider` so every Orion background worker, lease, and scheduler shares one clock contract and one DI registration.
 - **Deterministic test clock** (`FrozenOrionClock`, in `Orion.Abstractions.Testing`) - a frozen, advanceable clock for testing lease expiry, grace periods, and scheduled work without real delays.
+- **Deadline seam** (`OrionDeadline`) - a time budget as a monotonic deadline over `IOrionClock`, bound to its clock so it can't be checked against the wrong one, replacing ad-hoc `Stopwatch` / `CancelAfter` timing and staying deterministic under `FrozenOrionClock`.
+- **Reliability test helpers** (`DeterministicFaultInjector`, `RecordingObserver.Events`, in `Orion.Abstractions.Testing`) - reproducible, no-randomness fault injection for retry / exactly-once tests, and an ordered invocation/fault timeline for asserting observer interleaving.
 - **Options convention** (`OrionOptions` / `AddOrionOptions`) - one base type, one collecting validator, one failure-message format. An options type states its invariants once and a misconfigured host learns *all* of its mistakes in a single startup instead of one per restart.
 - **OTel naming surface** (`OrionTelemetry`) - the frozen constants for scope names, metric names, tag keys, and outcome values, so a dashboard written against one package generalises to all of them and no package invents a magic string.
 - **Error vocabulary** (`IOrionResult` / `OrionError` / `OrionErrorCodes`) - the shape for returning an expected outcome instead of throwing on the hot path, plus the canonical error codes the web tier maps to status codes without a per-package table.
@@ -167,6 +169,24 @@ Assert.Equal(TimeSpan.FromSeconds(31), clock.GetElapsedTime(start));
 
 `Advance` moves both the wall clock and the monotonic timestamp; `SetUtcNow` moves only the wall clock. Both reject going backward, matching a real monotonic clock.
 
+### Deadlines
+
+`OrionDeadline` (in `Moongazing.Orion.Abstractions.Time`) turns a time budget into a monotonic deadline over `IOrionClock`, replacing ad-hoc `Stopwatch`-elapsed comparisons and `CancellationTokenSource.CancelAfter` in acquire / retry / renew loops. It binds to the clock it was created from, so `IsExpired` / `Remaining` are argument-free and can never be checked against the wrong clock — and it expires deterministically under `FrozenOrionClock`.
+
+```csharp
+using Moongazing.Orion.Abstractions.Time;
+
+var deadline = OrionDeadline.After(clock, options.WaitTimeout);
+while (!deadline.IsExpired)
+{
+    if (TryAcquire(out var handle)) return handle;
+    await delay(Min(retryInterval, deadline.Remaining), ct);
+}
+// OrionDeadline.Never models "no timeout"; a non-positive budget is already expired.
+```
+
+Because it reads the clock, a test drives timeout behavior by advancing a `FrozenOrionClock` instead of waiting real time.
+
 ### Options and validation
 
 Derive your package's options from `OrionOptions`, state the invariants once, and register with `AddOrionOptions`. Validation collects every failure rather than throwing on the first, so one startup surfaces the whole misconfiguration.
@@ -266,7 +286,8 @@ The static-tag pattern lets you split dashboards by tenant, region, or environme
 
 - Reference `Orion.Abstractions.Testing` from test projects and inject `FrozenOrionClock` wherever production injects `IOrionClock`. Advancing the clock makes lease-expiry, grace-period, and scheduler tests deterministic and instant.
 - `SafeObserverInvoker` is static and side-effect-free apart from the callbacks you pass, so it is straightforward to assert the no-op, happy, fault-swallowing, and cancellation-propagating paths directly.
-- `RecordingObserver<TObserver>` (also in `Orion.Abstractions.Testing`) records every observer invocation and every swallowed fault at a `SafeObserverInvoker` call site. Pass its `Track` / `TrackAsync` wrapper as the action and its `OnFault` as the fault hook, then assert your observers behave per the [observer contract](docs/observer-contract.md).
+- `RecordingObserver<TObserver>` (also in `Orion.Abstractions.Testing`) records every observer invocation and every swallowed fault at a `SafeObserverInvoker` call site. Pass its `Track` / `TrackAsync` wrapper as the action and its `OnFault` as the fault hook, then assert your observers behave per the [observer contract](docs/observer-contract.md). Its `Events` timeline captures invocations and faults interleaved in occurrence order, so you can assert a fault happened *between* two invocations — ordering the flat `Invocations` / `Faults` lists cannot express.
+- `DeterministicFaultInjector` (also in `Orion.Abstractions.Testing`) injects faults reproducibly for retry / backoff / exactly-once tests — `FailFirst(n)`, `FailOnAttempts(...)`, `AlwaysFail()`, `NeverFail()`, `FailUntil(clock, instant)` (time-based recovery over `FrozenOrionClock`), or `When(predicate)`. There is no randomness, so a failing run is always reproducible; call `Next()` per attempt (or wrap the operation with `Run` / `RunAsync`), and injected faults are a dedicated `DeterministicFaultException`.
 
 ```csharp
 using Moongazing.Orion.Abstractions.Observers;
@@ -287,7 +308,7 @@ A micro-benchmark suite (BenchmarkDotNet) covers the allocation- and CPU-bearing
 | Package                      | Purpose                                               |
 | ---------------------------- | ----------------------------------------------------- |
 | `Orion.Abstractions`         | The shared primitives above.                          |
-| `Orion.Abstractions.Testing` | `FrozenOrionClock` and `RecordingObserver` test doubles. |
+| `Orion.Abstractions.Testing` | `FrozenOrionClock`, `RecordingObserver`, and `DeterministicFaultInjector` test doubles. |
 
 ## Versioning
 
