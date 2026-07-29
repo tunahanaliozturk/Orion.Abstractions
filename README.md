@@ -180,9 +180,10 @@ var deadline = OrionDeadline.After(clock, options.WaitTimeout);
 while (!deadline.IsExpired)
 {
     if (TryAcquire(out var handle)) return handle;
-    await delay(Min(retryInterval, deadline.Remaining), ct);
+    await delay(retryInterval, ct);
 }
-// OrionDeadline.Never models "no timeout"; a non-positive budget is already expired.
+// OrionDeadline.Never models "no timeout" (the loop retries indefinitely); a non-positive budget
+// is already expired. Remaining is clamped to zero once passed, or Timeout.InfiniteTimeSpan for Never.
 ```
 
 Because it reads the clock, a test drives timeout behavior by advancing a `FrozenOrionClock` instead of waiting real time.
@@ -287,7 +288,7 @@ The static-tag pattern lets you split dashboards by tenant, region, or environme
 - Reference `Orion.Abstractions.Testing` from test projects and inject `FrozenOrionClock` wherever production injects `IOrionClock`. Advancing the clock makes lease-expiry, grace-period, and scheduler tests deterministic and instant.
 - `SafeObserverInvoker` is static and side-effect-free apart from the callbacks you pass, so it is straightforward to assert the no-op, happy, fault-swallowing, and cancellation-propagating paths directly.
 - `RecordingObserver<TObserver>` (also in `Orion.Abstractions.Testing`) records every observer invocation and every swallowed fault at a `SafeObserverInvoker` call site. Pass its `Track` / `TrackAsync` wrapper as the action and its `OnFault` as the fault hook, then assert your observers behave per the [observer contract](docs/observer-contract.md). Its `Events` timeline captures invocations and faults interleaved in occurrence order, so you can assert a fault happened *between* two invocations — ordering the flat `Invocations` / `Faults` lists cannot express.
-- `DeterministicFaultInjector` (also in `Orion.Abstractions.Testing`) injects faults reproducibly for retry / backoff / exactly-once tests — `FailFirst(n)`, `FailOnAttempts(...)`, `AlwaysFail()`, `NeverFail()`, `FailUntil(clock, instant)` (time-based recovery over `FrozenOrionClock`), or `When(predicate)`. There is no randomness, so a failing run is always reproducible; call `Next()` per attempt (or wrap the operation with `Run` / `RunAsync`), and injected faults are a dedicated `DeterministicFaultException`.
+- `DeterministicFaultInjector` (also in `Orion.Abstractions.Testing`) injects faults reproducibly for retry / backoff / exactly-once tests — `FailFirst(n)`, `FailOnAttempts(...)`, `AlwaysFail()`, `NeverFail()`, `FailUntil(clock, instant)` (time-based recovery over `FrozenOrionClock`), or `When(predicate)`. There is no randomness, so a failing run is always reproducible; call `Next()` per attempt (or wrap the operation with `Run` / `RunAsync`). Injected faults default to a dedicated `DeterministicFaultException` (override with the optional fault factory each schedule accepts).
 
 ```csharp
 using Moongazing.Orion.Abstractions.Observers;
