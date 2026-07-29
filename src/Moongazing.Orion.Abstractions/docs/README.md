@@ -63,12 +63,20 @@ var clock = new FrozenOrionClock();
 clock.Advance(TimeSpan.FromSeconds(31));   // drive a lease past expiry, no real delay
 ```
 
+`OrionDeadline.After(clock, budget)` (in `Moongazing.Orion.Abstractions.Time`) turns a time budget
+into a monotonic deadline over the clock, so acquire / retry / renew loops replace ad-hoc `Stopwatch`
+timing with one shape that expires deterministically as a `FrozenOrionClock` is advanced.
+
+For reliability tests, `Orion.Abstractions.Testing` also ships `DeterministicFaultInjector`
+(reproducible, no-randomness fault injection) and `RecordingObserver.Events` (an ordered
+invocation/fault timeline).
+
 ## Packages
 
 | Package | Purpose |
 |---------|---------|
 | `Orion.Abstractions` | The shared primitives above. |
-| `Orion.Abstractions.Testing` | `FrozenOrionClock` and future test doubles. |
+| `Orion.Abstractions.Testing` | `FrozenOrionClock`, `RecordingObserver`, and `DeterministicFaultInjector` test doubles. |
 
 ## Design
 
