@@ -231,4 +231,58 @@ public sealed class RecordingObserverTests
         Assert.Single(snapshot);
         Assert.Equal(2, recorder.InvocationCount);
     }
+
+    [Fact]
+    public void Events_capture_invocations_and_faults_in_occurrence_order()
+    {
+        var thing = new Thing();
+        var recorder = new RecordingObserver<IThing>(thing);
+        var boom = new InvalidOperationException("boom");
+
+        SafeObserverInvoker.Invoke(recorder.Observer, recorder.Track(t => t.Do()), recorder.OnFault); // invocation
+        SafeObserverInvoker.Invoke(recorder.Observer, recorder.Track(_ => throw boom), recorder.OnFault); // fault
+        SafeObserverInvoker.Invoke(recorder.Observer, recorder.Track(t => t.Do()), recorder.OnFault); // invocation
+
+        var events = recorder.Events;
+        Assert.Equal(3, events.Count);
+
+        // The interleaving the separate Invocations / Faults lists cannot express: fault BETWEEN two invocations.
+        Assert.Equal(RecordingObserver<IThing>.RecordedEventKind.Invocation, events[0].Kind);
+        Assert.Same(thing, events[0].Observer);
+        Assert.Null(events[0].Fault);
+
+        Assert.Equal(RecordingObserver<IThing>.RecordedEventKind.Fault, events[1].Kind);
+        Assert.Same(boom, events[1].Fault);
+        Assert.Null(events[1].Observer);
+
+        Assert.Equal(RecordingObserver<IThing>.RecordedEventKind.Invocation, events[2].Kind);
+
+        // The timeline stays consistent with the flat lists.
+        Assert.Equal(2, recorder.InvocationCount);
+        Assert.Equal(1, recorder.FaultCount);
+    }
+
+    [Fact]
+    public void A_faulting_action_records_a_fault_but_no_invocation_in_the_timeline()
+    {
+        var recorder = new RecordingObserver<IThing>(new Thing());
+
+        SafeObserverInvoker.Invoke(recorder.Observer, recorder.Track(_ => throw new InvalidOperationException()), recorder.OnFault);
+
+        var only = Assert.Single(recorder.Events);
+        Assert.Equal(RecordingObserver<IThing>.RecordedEventKind.Fault, only.Kind);
+        Assert.Empty(recorder.Invocations);
+    }
+
+    [Fact]
+    public void Reset_clears_the_event_timeline()
+    {
+        var recorder = new RecordingObserver<IThing>(new Thing());
+        SafeObserverInvoker.Invoke(recorder.Observer, recorder.Track(), recorder.OnFault);
+        Assert.NotEmpty(recorder.Events);
+
+        recorder.Reset();
+
+        Assert.Empty(recorder.Events);
+    }
 }

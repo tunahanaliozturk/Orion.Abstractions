@@ -6,6 +6,27 @@ All notable changes to Orion.Abstractions are documented in this file. The forma
 on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-07-29
+
+Wave 2 (Reliability) groundwork, additive to the **testing companion** only. The core
+`Orion.Abstractions` API is unchanged from 1.0.0 — still source- and binary-compatible for the whole
+1.x line — so this is a drop-in upgrade; the version moves to 1.1.0 because
+`Orion.Abstractions.Testing` gained new helpers.
+
+### Added
+
+- **`DeterministicFaultInjector`** (`Orion.Abstractions.Testing`) — a reproducible, no-randomness fault
+  injector for reliability tests (retry, backoff, exactly-once, circuit-breaking). Schedules:
+  `FailFirst(n)`, `FailOnAttempts(...)`, `AlwaysFail()`, `NeverFail()`, `FailUntil(clock, instant)`
+  (time-based recovery over `FrozenOrionClock`), and `When(predicate)`. Call `Next()` at each attempt
+  or wrap the operation with `Run` / `RunAsync`; attempt counting is thread-safe. Injected faults are
+  a dedicated `DeterministicFaultException` so a test can catch them distinctly. This is the
+  deterministic fault-injection helper the family's Wave 2 exactly-once chaos tests build on.
+- **`RecordingObserver<TObserver>.Events`** — an interleaved, ordered timeline of invocations and
+  swallowed faults (`RecordedEvent` / `RecordedEventKind`). Lets a test assert ordering the separate
+  `Invocations` / `Faults` lists cannot express — e.g. that a fault occurred *between* two successful
+  invocations. `Reset()` clears it alongside the existing lists.
+
 ## [1.0.0] - 2026-07-20
 
 The spine is frozen. Everything the family binds to - the options/DI shape, the telemetry
