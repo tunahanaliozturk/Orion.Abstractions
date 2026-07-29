@@ -6,6 +6,22 @@ All notable changes to Orion.Abstractions are documented in this file. The forma
 on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-07-29
+
+Wave 2 (Reliability): the **deadline seam**. Additive to the core — everything in 1.0/1.1 is
+unchanged, so this stays a drop-in upgrade for the 1.x line.
+
+### Added
+
+- **`OrionDeadline`** (`Moongazing.Orion.Abstractions.Time`) — a time budget expressed as a monotonic
+  deadline against an `IOrionClock`. `OrionDeadline.After(clock, budget)` captures the clock's
+  monotonic timestamp (binding the deadline to that clock); the `IsExpired` and `Remaining` properties evaluate against it (immune to
+  wall-clock adjustments), and `OrionDeadline.Never` / an infinite budget model "no timeout". It
+  replaces the ad-hoc `Stopwatch`-elapsed and `CancellationTokenSource.CancelAfter` patterns in the
+  family's acquire / retry / renew loops with one shape that is **deterministic under
+  `FrozenOrionClock`** — advance the clock to expire it, so timeout logic is testable without real
+  waits. Verified trim/AOT-clean via the AOT smoke test.
+
 ## [1.1.0] - 2026-07-29
 
 Wave 2 (Reliability) groundwork, additive to the **testing companion** only. The core
