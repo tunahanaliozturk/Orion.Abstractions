@@ -15,7 +15,7 @@ unchanged, so this stays a drop-in upgrade for the 1.x line.
 
 - **`OrionDeadline`** (`Moongazing.Orion.Abstractions.Time`) — a time budget expressed as a monotonic
   deadline against an `IOrionClock`. `OrionDeadline.After(clock, budget)` captures the clock's
-  monotonic timestamp; `IsExpired(clock)` and `Remaining(clock)` evaluate against it (immune to
+  monotonic timestamp (binding the deadline to that clock); the `IsExpired` and `Remaining` properties evaluate against it (immune to
   wall-clock adjustments), and `OrionDeadline.Never` / an infinite budget model "no timeout". It
   replaces the ad-hoc `Stopwatch`-elapsed and `CancellationTokenSource.CancelAfter` patterns in the
   family's acquire / retry / renew loops with one shape that is **deterministic under
