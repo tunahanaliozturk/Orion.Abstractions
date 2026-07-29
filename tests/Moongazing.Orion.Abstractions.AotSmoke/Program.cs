@@ -60,6 +60,11 @@ Check(faulted, "observer fault was not reported");
 var error = new OrionError(OrionErrorCodes.Conflict, "held", "orders:42");
 Check(error.ToString() == "conflict (orders:42): held", "error rendering failed");
 
+// The deadline seam evaluates against the clock's monotonic timestamp.
+Check(OrionDeadline.After(clock, TimeSpan.Zero).IsExpired(clock), "zero-budget deadline should be expired");
+Check(!OrionDeadline.After(clock, TimeSpan.FromHours(1)).IsExpired(clock), "one-hour deadline should not be expired");
+Check(!OrionDeadline.Never.IsExpired(clock), "Never should not expire");
+
 Console.WriteLine("Orion.Abstractions AOT smoke test passed.");
 return 0;
 
