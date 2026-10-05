@@ -3,6 +3,7 @@
     <PackageId>Orion.Abstractions</PackageId>
     <Description>The frozen spine of the Orion family of .NET libraries: fault-safe observer invocation, OpenTelemetry naming and instrumentation conventions (ActivitySource + Meter + static tag stamping), a testable clock seam, the shared options/DI convention, and the result/error vocabulary. Depend on this from any library that wants the Orion conventions; it has no Orion dependencies of its own.</Description>
     <PackageTags>orion;abstractions;opentelemetry;diagnostics;observer;clock;options;result;dotnet</PackageTags>
+    <PackageReadmeFile>docs/README.md</PackageReadmeFile>
     <RootNamespace>Moongazing.Orion.Abstractions</RootNamespace>
     <IsAotCompatible>true</IsAotCompatible>
   </PropertyGroup>
@@ -14,5 +15,6 @@
     <InternalsVisibleTo Include="Moongazing.Orion.Abstractions.Tests" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="docs/README.md" Pack="true" PackagePath="docs/" />
   </ItemGroup>
 </Project>

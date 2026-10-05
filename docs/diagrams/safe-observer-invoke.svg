@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="920" viewBox="0 0 1200 920">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: "Segoe UI", Inter, "Helvetica Neue", Arial, sans-serif; fill: #1e1b4b; }
+    .title { font-size: 24px; font-weight: 700; }
+    .subtitle { font-size: 14px; fill: #475569; }
+    .label { font-size: 15px; font-weight: 600; }
+    .small { font-size: 12.5px; fill: #475569; }
+    .code { font-family: "Cascadia Code", Consolas, "SF Mono", monospace; font-size: 13px; fill: #3730a3; }
+    .edge { font-size: 12.5px; fill: #334155; }
+    .step { fill: #eef2ff; stroke: #4f46e5; stroke-width: 2; }
+    .ext { fill: #f0f9ff; stroke: #0284c7; stroke-width: 2; }
+    .ok { fill: #ecfdf5; stroke: #059669; stroke-width: 2; }
+    .fail { fill: #fef2f2; stroke: #dc2626; stroke-width: 2; }
+    .decision { fill: #fffbeb; stroke: #d97706; stroke-width: 2; }
+    .note { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; stroke-dasharray: 4 3; }
+    .lane { stroke: #cbd5e1; stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .flow { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+    .flow.alt { stroke: #dc2626; stroke-dasharray: 6 4; marker-end: url(#arrow-fail); }
+    .flow.back { stroke-dasharray: 6 4; }
+    .badge { fill: #4f46e5; }
+    .badge-text { font-size: 12px; font-weight: 700; fill: #ffffff; }
+  </style>
+
+  <rect width="1200" height="920" fill="#ffffff"/>
+
+  <text class="title" x="40" y="52">SafeObserverInvoker - calling a consumer observer safely</text>
+  <text class="subtitle" x="40" y="78">An observer outage never breaks the host path, and cooperative cancellation always reaches it.</text>
+
+  <!-- 1 entry -->
+  <rect class="step" x="130" y="110" width="340" height="80" rx="14"/>
+  <text class="label" x="300" y="142" text-anchor="middle">Host path reaches an observer hook</text>
+  <text class="code" x="300" y="168" text-anchor="middle">SafeObserverInvoker.InvokeAsync</text>
+  <path class="flow" d="M300,190 L300,218"/>
+
+  <!-- D1 null -->
+  <polygon class="decision" points="300,220 420,280 300,340 180,280"/>
+  <text class="label" x="300" y="285" text-anchor="middle">observer null?</text>
+  <path class="flow" d="M420,280 L558,280"/>
+  <text class="edge" x="489" y="270" text-anchor="middle">yes</text>
+  <rect class="ok" x="560" y="248" width="260" height="64" rx="14"/>
+  <text class="label" x="690" y="275" text-anchor="middle">No-op, return</text>
+  <text class="small" x="690" y="296" text-anchor="middle">action is never called</text>
+
+  <path class="flow" d="M300,340 L300,378"/>
+  <text class="edge" x="312" y="364">no</text>
+
+  <!-- 2 run -->
+  <rect class="step" x="150" y="380" width="300" height="70" rx="14"/>
+  <text class="label" x="300" y="408" text-anchor="middle">Run the observer</text>
+  <text class="code" x="300" y="432" text-anchor="middle">await action(observer)</text>
+  <path class="flow" d="M300,450 L300,478"/>
+
+  <!-- D2 threw -->
+  <polygon class="decision" points="300,480 420,540 300,600 180,540"/>
+  <text class="label" x="300" y="545" text-anchor="middle">action threw?</text>
+  <path class="flow" d="M420,540 L558,540"/>
+  <text class="edge" x="489" y="530" text-anchor="middle">no</text>
+  <rect class="ok" x="560" y="508" width="260" height="64" rx="14"/>
+  <text class="label" x="690" y="535" text-anchor="middle">Return</text>
+  <text class="small" x="690" y="556" text-anchor="middle">host continues</text>
+
+  <path class="flow" d="M300,600 L300,638"/>
+  <text class="edge" x="312" y="624">yes</text>
+
+  <!-- D3 cancellation -->
+  <polygon class="decision" points="300,640 460,710 300,780 140,710"/>
+  <text class="code" x="300" y="705" text-anchor="middle">OperationCanceledException</text>
+  <text class="small" x="300" y="726" text-anchor="middle">and the token is cancelled?</text>
+  <path class="flow alt" d="M460,710 L558,710"/>
+  <text class="edge" x="509" y="700" text-anchor="middle">yes</text>
+  <rect class="fail" x="560" y="676" width="300" height="68" rx="14"/>
+  <text class="label" x="710" y="704" text-anchor="middle">Rethrow</text>
+  <text class="small" x="710" y="726" text-anchor="middle">cancellation propagates to the host</text>
+
+  <path class="flow" d="M300,780 L300,818"/>
+  <text class="edge" x="312" y="804">no</text>
+
+  <!-- 3 onFault -->
+  <rect class="step" x="150" y="820" width="300" height="70" rx="14"/>
+  <text class="label" x="300" y="848" text-anchor="middle">Report the fault</text>
+  <text class="code" x="300" y="872" text-anchor="middle">onFault?.Invoke(ex)</text>
+  <path class="flow" d="M450,855 L558,855"/>
+  <text class="edge" x="504" y="845" text-anchor="middle">swallow</text>
+  <rect class="ok" x="560" y="823" width="260" height="64" rx="14"/>
+  <text class="label" x="690" y="850" text-anchor="middle">Return</text>
+  <text class="small" x="690" y="871" text-anchor="middle">host continues</text>
+
+  <!-- notes -->
+  <rect class="note" x="880" y="110" width="280" height="312" rx="10"/>
+  <text class="label" x="900" y="138">Three entry points</text>
+  <text class="code" x="900" y="168">Invoke</text>
+  <text class="small" x="900" y="188">synchronous, no token: every</text>
+  <text class="small" x="900" y="206">exception goes to onFault.</text>
+  <text class="code" x="900" y="238">InvokeAsync</text>
+  <text class="small" x="900" y="258">the flow on the left; the token</text>
+  <text class="small" x="900" y="276">is the cancellationToken argument.</text>
+  <text class="code" x="900" y="308">Resolve</text>
+  <text class="small" x="900" y="328">resolve() runs inside the guard,</text>
+  <text class="small" x="900" y="346">so a throwing observer constructor</text>
+  <text class="small" x="900" y="364">goes to onFault; a null observer</text>
+  <text class="small" x="900" y="382">is a no-op. No token: every</text>
+  <text class="small" x="900" y="400">exception goes to onFault.</text>
+
+  <rect class="note" x="880" y="676" width="280" height="110" rx="10"/>
+  <text class="label" x="900" y="704">onFault is not guarded</text>
+  <text class="small" x="900" y="726">It must not throw: see the observer</text>
+  <text class="small" x="900" y="744">contract. A null onFault means the</text>
+  <text class="small" x="900" y="762">fault is swallowed silently.</text>
+</svg>

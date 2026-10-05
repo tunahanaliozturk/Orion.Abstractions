@@ -124,11 +124,16 @@ an expiry is a bug: advance the clock instead.
 All names come from `OrionTelemetry`. No package declares a naming magic string.
 
 ```csharp
-internal sealed class LockInstrumentation()
-    : OrionInstrumentation(OrionTelemetry.ScopeName("OrionLock"), ThisAssembly.Version)
+internal sealed class LockInstrumentation : OrionInstrumentation
 {
-    public Histogram<double> AcquireDuration { get; } =
-        Meter.CreateHistogram<double>(OrionTelemetry.MetricName("lock", "acquire.duration"), "ms");
+    public LockInstrumentation()
+        : base(OrionTelemetry.ScopeName("OrionLock"), ThisAssembly.Version)
+    {
+        AcquireDuration =
+            Meter.CreateHistogram<double>(OrionTelemetry.MetricName("lock", "acquire.duration"), "ms");
+    }
+
+    public Histogram<double> AcquireDuration { get; }
 }
 ```
 
