@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="580" viewBox="0 0 1200 580">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-fail" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#dc2626"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: "Segoe UI", Inter, "Helvetica Neue", Arial, sans-serif; fill: #1e1b4b; }
+    .title { font-size: 24px; font-weight: 700; }
+    .subtitle { font-size: 14px; fill: #475569; }
+    .label { font-size: 15px; font-weight: 600; }
+    .small { font-size: 12.5px; fill: #475569; }
+    .code { font-family: "Cascadia Code", Consolas, "SF Mono", monospace; font-size: 13px; fill: #3730a3; }
+    .edge { font-size: 12.5px; fill: #334155; }
+    .step { fill: #eef2ff; stroke: #4f46e5; stroke-width: 2; }
+    .ext { fill: #f0f9ff; stroke: #0284c7; stroke-width: 2; }
+    .ok { fill: #ecfdf5; stroke: #059669; stroke-width: 2; }
+    .fail { fill: #fef2f2; stroke: #dc2626; stroke-width: 2; }
+    .decision { fill: #fffbeb; stroke: #d97706; stroke-width: 2; }
+    .note { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; stroke-dasharray: 4 3; }
+    .lane { stroke: #cbd5e1; stroke-width: 1.5; stroke-dasharray: 6 5; }
+    .flow { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+    .flow.alt { stroke: #dc2626; stroke-dasharray: 6 4; marker-end: url(#arrow-fail); }
+    .flow.back { stroke-dasharray: 6 4; }
+    .badge { fill: #4f46e5; }
+    .badge-text { font-size: 12px; font-weight: 700; fill: #ffffff; }
+  </style>
+
+  <rect width="1200" height="580" fill="#ffffff"/>
+
+  <text class="title" x="40" y="52">AddOrionOptions - validate once, report every mistake</text>
+  <text class="subtitle" x="40" y="78">A misconfigured host learns all of its problems in one startup, in one message format for the whole family.</text>
+
+  <!-- 1 register -->
+  <rect class="step" x="40" y="110" width="290" height="96" rx="14"/>
+  <text class="label" x="185" y="138" text-anchor="middle">Register</text>
+  <text class="code" x="185" y="162" text-anchor="middle">AddOrionOptions&lt;T&gt;(configure)</text>
+  <text class="small" x="185" y="186" text-anchor="middle">validator added once (TryAddEnumerable)</text>
+  <circle class="badge" cx="40" cy="110" r="12"/>
+  <text class="badge-text" x="40" y="114" text-anchor="middle">1</text>
+  <path class="flow" d="M330,158 L378,158"/>
+
+  <!-- 2 resolve -->
+  <rect class="step" x="380" y="110" width="270" height="96" rx="14"/>
+  <text class="label" x="515" y="138" text-anchor="middle">First resolve</text>
+  <text class="code" x="515" y="162" text-anchor="middle">IOptions&lt;T&gt;.Value</text>
+  <text class="small" x="515" y="186" text-anchor="middle">or at host start with ValidateOnStart()</text>
+  <circle class="badge" cx="380" cy="110" r="12"/>
+  <text class="badge-text" x="380" y="114" text-anchor="middle">2</text>
+  <path class="flow" d="M650,158 L698,158"/>
+
+  <!-- 3 validate -->
+  <rect class="step" x="700" y="110" width="300" height="96" rx="14"/>
+  <text class="code" x="850" y="138" text-anchor="middle">OrionOptionsValidator&lt;T&gt;</text>
+  <text class="code" x="850" y="162" text-anchor="middle">options.Validate(context)</text>
+  <text class="small" x="850" y="186" text-anchor="middle">collects every failure, never stops early</text>
+  <circle class="badge" cx="700" cy="110" r="12"/>
+  <text class="badge-text" x="700" y="114" text-anchor="middle">3</text>
+  <path class="flow" d="M850,206 L850,238"/>
+
+  <!-- decision -->
+  <polygon class="decision" points="850,240 960,300 850,360 740,300"/>
+  <text class="small" x="850" y="294" text-anchor="middle">any failures?</text>
+  <text class="code" x="850" y="314" text-anchor="middle">HasFailures</text>
+
+  <path class="flow" d="M960,300 L1008,300"/>
+  <text class="edge" x="984" y="290" text-anchor="middle">no</text>
+  <rect class="ok" x="1010" y="268" width="150" height="64" rx="14"/>
+  <text class="label" x="1085" y="296" text-anchor="middle">Options ready</text>
+  <text class="small" x="1085" y="316" text-anchor="middle">instance returned</text>
+
+  <path class="flow alt" d="M850,360 L850,418"/>
+  <text class="edge" x="862" y="394">yes</text>
+  <rect class="fail" x="700" y="420" width="300" height="80" rx="14"/>
+  <text class="code" x="850" y="450" text-anchor="middle">OptionsValidationException</text>
+  <text class="small" x="850" y="474" text-anchor="middle">one message listing every failure</text>
+
+  <!-- helpers note -->
+  <rect class="note" x="40" y="240" width="590" height="140" rx="10"/>
+  <text class="label" x="60" y="268">Inside Validate(context): state each invariant once</text>
+  <text class="code" x="60" y="296">Require(condition, reason)</text>
+  <text class="code" x="60" y="318">RequirePositive / RequireNonNegative</text>
+  <text class="code" x="60" y="340">RequireInRange / RequireNotNullOrWhiteSpace</text>
+  <text class="code" x="60" y="362">AddFailure(propertyName, reason)</text>
+
+  <!-- message format note -->
+  <path class="flow back" d="M700,460 L632,460"/>
+  <text class="edge" x="666" y="450" text-anchor="middle">text</text>
+  <rect class="note" x="40" y="410" width="590" height="140" rx="10"/>
+  <text class="label" x="60" y="438">Message format (BuildFailureMessage)</text>
+  <text class="code" x="60" y="466">{Type} is invalid:</text>
+  <text class="code" x="60" y="488">  - {Type}.{Property}: {reason}</text>
+  <text class="code" x="60" y="510">  - {Type}: {reason}</text>
+  <text class="small" x="60" y="534">One failure: "{Type} is invalid. {failure}". Named options: "{Type} (named 'x')".</text>
+</svg>

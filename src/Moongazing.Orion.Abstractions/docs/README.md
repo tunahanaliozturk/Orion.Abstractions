@@ -1,89 +1,97 @@
 # Orion.Abstractions
 
-[![CI/CD](https://github.com/tunahanaliozturk/Orion.Abstractions/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/tunahanaliozturk/Orion.Abstractions/actions/workflows/ci-cd.yml)
-[![NuGet](https://img.shields.io/nuget/v/Orion.Abstractions.svg)](https://www.nuget.org/packages/Orion.Abstractions/)
+The shared spine of the Orion family of .NET libraries: fault-safe observer invocation, OpenTelemetry naming and instrumentation, a testable clock and deadline, the options/DI convention, and the error vocabulary. Depend on it from any library that wants the Orion conventions; it has no Orion dependencies of its own.
 
-Shared foundation primitives for the **Orion** family of .NET libraries. This package has
-no Orion dependencies of its own; any library can depend on it to inherit the Orion
-conventions, and the existing family members (OrionGuard, OrionPatch, OrionAudit, OrionLock,
-OrionKey, OrionVault) converge on it over time.
+![Orion.Abstractions and Orion.Abstractions.Testing: what each package holds and who depends on them](https://raw.githubusercontent.com/tunahanaliozturk/Orion.Abstractions/main/docs/diagrams/overview.png)
 
-It exists because three primitives kept being re-implemented (and kept drifting) across the
-family. They now live here, once, correctly.
+## Install
 
-## What's inside
+```bash
+dotnet add package Orion.Abstractions
+```
 
-### 1. Fault-safe observer invocation (`SafeObserverInvoker`)
-
-Every Orion package exposes consumer observer hooks (`IDeadLetterSink`, `ILockEventObserver`,
-`IEncryptionAuditObserver`, ...). They all follow the same contract: a null observer is a
-no-op, observer faults are swallowed (observability must never break the load-bearing path),
-and `OperationCanceledException` always propagates on cancellation.
+## Quick start
 
 ```csharp
-SafeObserverInvoker.Invoke(observer, o => o.OnSomething(payload),
-    onFault: ex => logger.LogWarning(ex, "observer faulted; host continued"));
+using Microsoft.Extensions.DependencyInjection;
+using Moongazing.Orion.Abstractions;
+using Moongazing.Orion.Abstractions.Time;
+
+var services = new ServiceCollection();
+services.AddOrionAbstractions(); // IOrionClock -> SystemOrionClock, via TryAddSingleton
+
+using var provider = services.BuildServiceProvider();
+var clock = provider.GetRequiredService<IOrionClock>();
+
+long start = clock.GetTimestamp();
+// ... do work ...
+TimeSpan elapsed = clock.GetElapsedTime(start);
+```
+
+`AddOrionAbstractions` uses `TryAdd`, so several Orion packages can call it and a clock you register first always wins.
+
+## What is inside
+
+| Namespace | Types | Purpose |
+|-----------|-------|---------|
+| `Observers` | `SafeObserverInvoker` | Call consumer observer hooks without letting them break the host path. |
+| `Diagnostics` | `OrionInstrumentation`, `OrionTelemetry` | One `ActivitySource` + `Meter` per package, static-tag stamping, frozen scope/metric/tag names. |
+| `Time` | `IOrionClock`, `SystemOrionClock`, `OrionDeadline` | A clock seam over `TimeProvider` and a monotonic deadline bound to it. |
+| `Configuration` | `OrionOptions`, `AddOrionOptions`, `OrionOptionsValidator<T>` | Options that report every validation failure in one message. |
+| `Results` | `IOrionResult`, `OrionError`, `OrionErrorCodes` | Expected outcomes as values, with one canonical error-code vocabulary. |
+
+All namespaces live under `Moongazing.Orion.Abstractions`.
+
+## Fault-safe observers
+
+![SafeObserverInvoker decision flow: null observer, success, swallowed fault, propagated cancellation](https://raw.githubusercontent.com/tunahanaliozturk/Orion.Abstractions/main/docs/diagrams/safe-observer-invoke.png)
+
+```csharp
+using Moongazing.Orion.Abstractions.Observers;
 
 await SafeObserverInvoker.InvokeAsync(observer,
-    o => o.OnSomethingAsync(payload, ct), ct,
-    onFault: ex => logger.LogWarning(ex, "observer faulted"));
-
-// Resolution itself inside the guard - a throwing observer ctor cannot abort the host path.
-SafeObserverInvoker.Resolve(() => sp.GetService<IMyObserver>(), o => o.OnSomething(payload));
+    o => o.OnSomethingAsync(payload),
+    onFault: ex => logger.LogWarning(ex, "observer faulted"),
+    cancellationToken: ct);
 ```
 
-### 2. OpenTelemetry conventions (`OrionInstrumentation`)
+A null observer is a no-op, an observer fault is swallowed and handed to `onFault`, and an `OperationCanceledException` thrown while `ct` is cancelled propagates. `Invoke` is the synchronous form; `Resolve` also runs the observer's resolution inside the guard. `onFault` itself is not guarded and must not throw.
 
-A base class that creates a consistently-named `ActivitySource` + `Meter` and provides the
-"static tags" pattern (set once at startup, stamped onto every measurement) for multi-tenant
-/ multi-region dashboard splitting without a second Meter.
+## Options with one failure message
 
 ```csharp
-public sealed class MyDiagnostics : OrionInstrumentation
+using Moongazing.Orion.Abstractions.Configuration;
+
+public sealed class MyOptions : OrionOptions
 {
-    public MyDiagnostics() : base("Moongazing.MyPackage", "1.0.0") { }
-    public readonly Counter<long> Things = /* Meter.CreateCounter... */;
+    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
+
+    public override void Validate(OrionOptionsValidationContext context)
+    {
+        base.Validate(context);
+        context.RequirePositive(Timeout, nameof(Timeout));
+    }
 }
 
-diag.SetStaticTags(new Dictionary<string,string> { ["tenant"] = tenantId });
-things.Add(1, diag.Tag(new("outcome", "ok")));   // appends the static tags
+services.AddOrionOptions<MyOptions>(o => o.Timeout = TimeSpan.FromSeconds(10));
 ```
 
-### 3. Testable clock (`IOrionClock` / `SystemOrionClock` + `FrozenOrionClock`)
+The validator is registered once with `TryAddEnumerable`. A rejected configuration throws `OptionsValidationException` on first resolve, listing every failure as `MyOptions.Timeout: must be greater than zero (was 00:00:00).`
 
-A thin seam over `TimeProvider` so every Orion background worker, lease, and scheduler shares
-one clock contract and one DI registration. `Orion.Abstractions.Testing` ships
-`FrozenOrionClock` for deterministic tests of lease expiry, grace periods, and scheduled work.
+## Compatibility
 
-```csharp
-services.AddOrionAbstractions();   // registers IOrionClock -> SystemOrionClock (TryAdd)
+- Targets `net8.0`, `net9.0` and `net10.0`.
+- NativeAOT and trim compatible (`IsAotCompatible`), checked by a NativeAOT smoke test in CI.
+- Dependencies: `Microsoft.Extensions.DependencyInjection.Abstractions` and `Microsoft.Extensions.Options` only.
+- The public surface is frozen across 1.x: source and binary compatible.
 
-// in tests:
-var clock = new FrozenOrionClock();
-clock.Advance(TimeSpan.FromSeconds(31));   // drive a lease past expiry, no real delay
-```
+## Related packages
 
-`OrionDeadline.After(clock, budget)` (in `Moongazing.Orion.Abstractions.Time`) turns a time budget
-into a monotonic deadline over the clock, so acquire / retry / renew loops replace ad-hoc `Stopwatch`
-timing with one shape that expires deterministically as a `FrozenOrionClock` is advanced.
+- `Orion.Abstractions.Testing` - `FrozenOrionClock`, `RecordingObserver<TObserver>` and `DeterministicFaultInjector` for deterministic tests.
 
-For reliability tests, `Orion.Abstractions.Testing` also ships `DeterministicFaultInjector`
-(reproducible, no-randomness fault injection) and `RecordingObserver.Events` (an ordered
-invocation/fault timeline).
+## Links
 
-## Packages
-
-| Package | Purpose |
-|---------|---------|
-| `Orion.Abstractions` | The shared primitives above. |
-| `Orion.Abstractions.Testing` | `FrozenOrionClock`, `RecordingObserver`, and `DeterministicFaultInjector` test doubles. |
-
-## Design
-
-- Multi-targets `net8.0`, `net9.0`, `net10.0`.
-- `TreatWarningsAsErrors`, latest analyzers, nullable enabled.
-- No dependencies beyond `Microsoft.Extensions.DependencyInjection.Abstractions`.
-
-## License
-
-MIT.
+- Documentation and full README: https://github.com/tunahanaliozturk/Orion.Abstractions
+- Conventions every Orion package follows: https://github.com/tunahanaliozturk/Orion.Abstractions/blob/main/docs/CONVENTIONS.md
+- Changelog: https://github.com/tunahanaliozturk/Orion.Abstractions/blob/main/CHANGELOG.md
+- License: MIT

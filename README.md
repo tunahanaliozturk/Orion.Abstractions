@@ -1,15 +1,22 @@
 <p align="center">
-  <img src="docs/logo.png" alt="Orion.Abstractions" width="150" />
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo.png">
+    <img src="docs/icon.png" alt="Orion.Abstractions logo" width="150">
+  </picture>
 </p>
 
 # Orion.Abstractions
 
 [![CI/CD](https://github.com/tunahanaliozturk/Orion.Abstractions/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/tunahanaliozturk/Orion.Abstractions/actions/workflows/ci-cd.yml)
 [![NuGet](https://img.shields.io/nuget/v/Orion.Abstractions.svg)](https://www.nuget.org/packages/Orion.Abstractions/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
+![.NET 8.0 | 9.0 | 10.0](https://img.shields.io/badge/.NET-8.0%20%7C%209.0%20%7C%2010.0-purple.svg)
 
 The frozen spine of the **Orion** family of .NET libraries. Five things kept being re-implemented (and kept drifting) across the family: fault-safe observer invocation, OpenTelemetry naming and instrumentation, a testable clock, the options/DI registration shape, and the error vocabulary. They now live here, once, correctly. The package has no Orion dependencies of its own, so any library can depend on it to inherit the Orion conventions.
 
 **At 1.0 the surface is frozen.** Every contract below is source- and binary-compatible across the whole 1.x line, so a package can bind to it without fear of drifting under a sibling's upgrade. The rules that go with it are in [docs/CONVENTIONS.md](docs/CONVENTIONS.md) - normative for every package in the family.
+
+![Orion.Abstractions and Orion.Abstractions.Testing: what each package holds and who depends on them](docs/diagrams/overview.png)
 
 ## Features
 
@@ -59,6 +66,8 @@ TimeSpan elapsed = clock.GetElapsedTime(start);
 ### Fault-safe observer invocation
 
 Route every consumer-supplied observer hook through `SafeObserverInvoker`. A null observer is skipped, a faulting observer is swallowed (and optionally reported), and cancellation is never downgraded to a swallowed warning.
+
+![SafeObserverInvoker decision flow: null observer, success, swallowed fault, propagated cancellation](docs/diagrams/safe-observer-invoke.png)
 
 ```csharp
 using Moongazing.Orion.Abstractions.Observers;
@@ -214,6 +223,8 @@ public sealed class OrionLockOptions : OrionOptions
 services.AddOrionOptions<OrionLockOptions>(configure);
 ```
 
+![AddOrionOptions validation flow: configure, OrionOptionsValidator, Validate(context), one collected failure message](docs/diagrams/options-validation.png)
+
 A rejected configuration fails resolution with one operator-facing message, in the same format for every package in the family:
 
 ```text
@@ -267,11 +278,16 @@ Build those names from `OrionTelemetry` rather than spelling them out, and take 
 ```csharp
 using Moongazing.Orion.Abstractions.Diagnostics;
 
-internal sealed class LockInstrumentation()
-    : OrionInstrumentation(OrionTelemetry.ScopeName("OrionLock"), "1.0.0")   // "Moongazing.OrionLock"
+internal sealed class LockInstrumentation : OrionInstrumentation
 {
-    public Histogram<double> AcquireDuration { get; } = Meter.CreateHistogram<double>(
-        OrionTelemetry.MetricName("lock", "acquire.duration"), "ms");        // "orion.lock.acquire.duration"
+    public LockInstrumentation()
+        : base(OrionTelemetry.ScopeName("OrionLock"), "1.0.0")              // "Moongazing.OrionLock"
+    {
+        AcquireDuration = Meter.CreateHistogram<double>(
+            OrionTelemetry.MetricName("lock", "acquire.duration"), "ms");   // "orion.lock.acquire.duration"
+    }
+
+    public Histogram<double> AcquireDuration { get; }
 }
 
 instrumentation.AcquireDuration.Record(
@@ -288,7 +304,7 @@ The static-tag pattern lets you split dashboards by tenant, region, or environme
 - Reference `Orion.Abstractions.Testing` from test projects and inject `FrozenOrionClock` wherever production injects `IOrionClock`. Advancing the clock makes lease-expiry, grace-period, and scheduler tests deterministic and instant.
 - `SafeObserverInvoker` is static and side-effect-free apart from the callbacks you pass, so it is straightforward to assert the no-op, happy, fault-swallowing, and cancellation-propagating paths directly.
 - `RecordingObserver<TObserver>` (also in `Orion.Abstractions.Testing`) records every observer invocation and every swallowed fault at a `SafeObserverInvoker` call site. Pass its `Track` / `TrackAsync` wrapper as the action and its `OnFault` as the fault hook, then assert your observers behave per the [observer contract](docs/observer-contract.md). Its `Events` timeline captures invocations and faults interleaved in occurrence order, so you can assert a fault happened *between* two invocations — ordering the flat `Invocations` / `Faults` lists cannot express.
-- `DeterministicFaultInjector` (also in `Orion.Abstractions.Testing`) injects faults reproducibly for retry / backoff / exactly-once tests — `FailFirst(n)`, `FailOnAttempts(...)`, `AlwaysFail()`, `NeverFail()`, `FailUntil(clock, instant)` (time-based recovery over `FrozenOrionClock`), or `When(predicate)`. There is no randomness, so a failing run is always reproducible; call `Next()` per attempt (or wrap the operation with `Run` / `RunAsync`). Injected faults default to a dedicated `DeterministicFaultException` (override with the optional fault factory each schedule accepts).
+- `DeterministicFaultInjector` (also in `Orion.Abstractions.Testing`) injects faults reproducibly for retry / backoff / exactly-once tests — `FailFirst(n)`, `FailOnAttempts(...)`, `AlwaysFail()`, `NeverFail()`, `FailUntil(clock, instant)` (time-based recovery over `FrozenOrionClock`), or `When(predicate)`. There is no randomness, so a failing run is always reproducible; call `Next()` per attempt (or wrap the operation with `Run` / `RunAsync`). Injected faults default to a dedicated `DeterministicFaultException` (override with the optional `fault` factory every failing schedule accepts).
 
 ```csharp
 using Moongazing.Orion.Abstractions.Observers;
@@ -315,7 +331,7 @@ A micro-benchmark suite (BenchmarkDotNet) covers the allocation- and CPU-bearing
 
 Follows [Semantic Versioning](https://semver.org/). **The 1.0 surface is frozen**: every contract in this README is source- and binary-compatible across the whole 1.x line, so a sibling package can bind to `1.*` and never break under a consumer's upgrade. Breaking changes wait for 2.0 and a migration note.
 
-The library multi-targets `net8.0`, `net9.0`, and `net10.0`. (The benchmark host runs on net8.0 and net9.0 only, because BenchmarkDotNet 0.14.0 has no .NET 10 job moniker.)
+The library multi-targets `net8.0`, `net9.0`, and `net10.0`. (The benchmark jobs run on .NET 8 and .NET 9 only, because BenchmarkDotNet 0.14.0 has no .NET 10 job moniker.)
 
 ## Documentation
 
@@ -327,7 +343,7 @@ The library multi-targets `net8.0`, `net9.0`, and `net10.0`. (The benchmark host
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md). Report a vulnerability privately as described in [SECURITY.md](SECURITY.md), not in a public issue.
 
 ## More from the Orion family
 

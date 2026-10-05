@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Roadmap
+    url: https://github.com/tunahanaliozturk/Orion.Abstractions/blob/main/docs/ROADMAP.md
+    about: Ideas already under consideration. Comment on a roadmap item rather than opening a duplicate request.
+  - name: Conventions
+    url: https://github.com/tunahanaliozturk/Orion.Abstractions/blob/main/docs/CONVENTIONS.md
+    about: The normative rules every Orion package follows. Read them before proposing a change to a shared contract.
+  - name: Security vulnerability
+    url: https://github.com/tunahanaliozturk/Orion.Abstractions/blob/main/SECURITY.md
+    about: Do not file a public issue. Report it privately as described in SECURITY.md.
