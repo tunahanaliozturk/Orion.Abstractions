@@ -11,7 +11,8 @@ body:
         than one that names only the API shape it wants.
 
         Check [docs/ROADMAP.md](https://github.com/tunahanaliozturk/Orion.Abstractions/blob/main/docs/ROADMAP.md)
-        first: the item may already be planned, in which case comment there instead.
+        first: the item may already be under consideration. If it is, still file this request, name the
+        roadmap item in it and describe the workload behind it; that evidence is what moves an item forward.
 
   - type: dropdown
     id: package

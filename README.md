@@ -42,6 +42,8 @@ dotnet add package Orion.Abstractions
 dotnet add package Orion.Abstractions.Testing
 ```
 
+The quick start builds its own container with `BuildServiceProvider()`, which comes from `Microsoft.Extensions.DependencyInjection`, not from the `.Abstractions` package this library depends on. A console app or test project also needs `dotnet add package Microsoft.Extensions.DependencyInjection`; ASP.NET Core and Generic Host apps already reference it.
+
 ## Quick start
 
 ```csharp
