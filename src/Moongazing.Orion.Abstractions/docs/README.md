@@ -10,6 +10,12 @@ The shared spine of the Orion family of .NET libraries: fault-safe observer invo
 dotnet add package Orion.Abstractions
 ```
 
+This package depends only on `Microsoft.Extensions.DependencyInjection.Abstractions`. The quick start builds its own container with `BuildServiceProvider()`, so a console app or test project also needs the container package (ASP.NET Core and Generic Host apps already have it):
+
+```bash
+dotnet add package Microsoft.Extensions.DependencyInjection
+```
+
 ## Quick start
 
 ```csharp

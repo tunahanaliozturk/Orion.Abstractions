@@ -2,7 +2,7 @@ blank_issues_enabled: false
 contact_links:
   - name: Roadmap
     url: https://github.com/tunahanaliozturk/Orion.Abstractions/blob/main/docs/ROADMAP.md
-    about: Ideas already under consideration. Comment on a roadmap item rather than opening a duplicate request.
+    about: Ideas already under consideration. If yours is listed, open a feature request that names the roadmap item and describes your workload.
   - name: Conventions
     url: https://github.com/tunahanaliozturk/Orion.Abstractions/blob/main/docs/CONVENTIONS.md
     about: The normative rules every Orion package follows. Read them before proposing a change to a shared contract.
